@@ -126,7 +126,7 @@ use Carp;
 use RTF::Tokenizer 1.01;
 use RTF::Config;
 
-$VERSION = '1.08_4';
+$VERSION = '1.08_5';
 my $DEBUG = 0;
 
 # Debugging stuff I'm leaving in in case someone is using it..,
