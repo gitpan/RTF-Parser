@@ -1,5 +1,6 @@
 
-		RTF Processor V 1.03 - ALPHA
+                     RTF Processor V 1.04 - ALPHA
+
 
 The RTF package set is a minimal RTF processor.  This set is provided
 with an RTF to HTML converter.  This converter is just an example, not
@@ -20,6 +21,16 @@ Don't hesite to send me your suggestions or extensions.
 
 Philippe Verdret
 pverdret@sonovision-itep.fr
+
+__________________
+Module description
+
+Name           DSLI  Description                                  Info
+
+-------------  ----  -------------------------------------------- -----
+
+RTF::Parser    adpO  Base class for parsing RTF files             PVERD
+
 
 ____
 TODO

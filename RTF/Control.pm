@@ -1,4 +1,4 @@
-# Sonovision-Itep, Philippe Verdret 1998
+# Sonovision-Itep, Philippe Verdret 1998-1999
 # 
 # Stack machine - must be application independant!
 # 
@@ -32,6 +32,7 @@ use constant SELF => 0;		# rtf processor instance
 use constant CONTROL => 1;	# control word
 use constant ARG => 2;		# associated argument
 use constant EVENT => 3;	# start/end event
+use constant TOP => -1;		# access to the TOP element of a stack
 ###########################################################################
 				# symbols to export in the application layer
 @RTF::Control::EXPORT = qw(output 
@@ -39,7 +40,7 @@ use constant EVENT => 3;	# start/end event
 			   %do_on_control
 			   %par_props
 			   $style $newstyle $event $text
-			   SELF CONTROL ARG EVENT
+			   SELF CONTROL ARG EVENT TOP
 			  );
 ###########################################################################
 
@@ -79,8 +80,8 @@ sub dump_stack {
   print STDERR map { $i-- . " |$_|\n" } reverse @output_stack;
 }
 my $nul_output_sub = sub {};
-my $string_output_sub = sub { $output_stack[-1] .= $_[0] };
-sub output { $output_stack[-1] .= $_[0] }
+my $string_output_sub = sub { $output_stack[TOP] .= $_[0] };
+sub output { $output_stack[TOP] .= $_[0] }
 sub push_output {  
   if (MAX_OUTPUT_STACK_SIZE) {
     die "max size of output stack exceeded" if @output_stack == MAX_OUTPUT_STACK_SIZE;
@@ -93,18 +94,33 @@ sub push_output {
   push @output_stack, '';
 }
 sub pop_output {  pop @output_stack; }
-my $flush_output_level = 2;
+
+# ??? trace the stack size
+# you need to flush all the @output_stack!!!
+#my $flush_output_level = 2;
 sub flush_output { 
-  return unless @output_stack == $flush_output_level;
-  my $content = $output_stack[-1]; 
-  $output_stack[-1] = ''; 
+  #return unless @output_stack == $flush_output_level;
+  my $content = $output_stack[TOP]; 
+#  if (@output_stack > 1) {
+#    warn "content:->@output_stack<-\n"; 
+#  }
+  $output_stack[TOP] = ''; 
   print $content 
+}
+sub print_output_stack {
+  if (@output_stack) {
+    print @output_stack;
+    @output_stack = ();
+  } else {
+    warn "empty \@output_stack\n";
+  }
 }
 ###########################################################################
 				# Trace management
-use constant STYLESHEET_TRACE => 0; # If you want to see the stylesheet of the document
 use constant TRACE => 0;	# General trace
-use constant STACK_TRACE => 0; # 
+use constant STYLESHEET_TRACE => 0; # If you want to see the stylesheet of the document
+use constant LIST_TRACE => 0;
+use constant STACK_TRACE => 0;	# 
 use constant DEBUG => 0;
 
 $| = 1 if TRACE or STACK_TRACE or DEBUG;
@@ -113,7 +129,8 @@ sub trace {
   #my $sub = (@caller)[3];
   #$sub =~ s/.*:://;
   #$sub = sprintf "%-12s", $sub;
-  print STDERR ('_' x $#control . "@_\n");
+  shift if ref $_[0];
+  print STDERR "[$.]", ('_' x $#control . "@_\n");
 }
 $SIG{__DIE__} = sub {
   require Carp;
@@ -127,7 +144,7 @@ sub application_dir {
   $pkg_name =~ s!::!/!g;
   my $dirname = dirname($INC{$pkg_name});
 
-  if (-f __FILE__) {		# is there a better method?
+  if (-f __FILE__) {		# is there a better solution?
     $dirname = dirname __FILE__;
   } else {
     $dirname = dirname '.' . __FILE__;
@@ -143,10 +160,10 @@ sub discard_content {
   trace "($_[CONTROL], $_[ARG], $_[EVENT])" if DISCARD_CONTENT;
   if ($_[ARG] eq "0") { 
     pop_output();
-    $control[-1]->{"$_[CONTROL]1"} = 1;
+    $control[TOP]->{"$_[CONTROL]1"} = 1;
   } elsif ($_[EVENT] eq 'start') { 
     push_output();
-    $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+    $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
   } elsif ($_[ARG] eq "1") { # see above
     $cevent = 'start';
     push_output();
@@ -166,7 +183,7 @@ sub do_on_info {		# 'info' content
   my $string;
   if ($_[EVENT] eq 'start') { 
     push_output();
-    $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+    $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
   } else {
     $string = pop_output();
     $info{"$_[CONTROL]$_[ARG]"} = $string;
@@ -227,7 +244,7 @@ sub install_callback {		# not a method!!!
 sub reset_char_props {
   %char_props = map {
     $_ => 0
-  } qw(b i ul sub super);
+  } qw(b i ul sub super strike);
 }
 my $char_prop_change = 0;
 my %current_char_props = %char_props;
@@ -294,10 +311,10 @@ sub do_on_toggle {		# associated callback
 
   my $action;
   if ($_[ARG] eq "0") {		# \b0, register an START event for this control
-    $control[-1]->{"$_[CONTROL]1"} = 1; # register a start event for this properties
+    $control[TOP]->{"$_[CONTROL]1"} = 1; # register a start event for this properties
     $cevent = 'end';
   } elsif ($_[EVENT] eq 'start') { # \b or \b1
-    $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+    $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
   } else {			# $_[EVENT] eq 'end'
     if ($_[ARG] eq "1") {	
       $cevent = 'start';
@@ -388,6 +405,8 @@ my %value_ctrl =
   (
   );
 
+my %pn = ();			# paragraph numbering 
+#trace "define callback for $_[CONTROL]";
 %do_on_control = 
   (
    %do_on_control,		
@@ -405,7 +424,7 @@ my %value_ctrl =
    'info' => sub {		# {\info {...}}
      if ($_[EVENT] eq 'start') { 
        push_output('nul');
-       $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
      } else {
        pop_output();
      }
@@ -436,7 +455,7 @@ my %value_ctrl =
      if ($_[EVENT] eq 'start') { 
        $IN_FONTTBL = 1 ;
        push_output('nul');
-       $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
      } else {
        $IN_FONTTBL = 0 ;
        pop_output();
@@ -447,7 +466,7 @@ my %value_ctrl =
      #trace "$#control $_[CONTROL] $_[ARG] $_[EVENT]";
      if ($_[EVENT] eq 'start') { 
        push_output('nul');
-       $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
      } else {
        pop_output();
      }
@@ -460,7 +479,7 @@ my %value_ctrl =
      if ($IN_FONTTBL) {
        if ($_[EVENT] eq 'start') {
 	 push_output();
-	 $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+	 $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
        } else {
 	 my $fontname = pop_output;
 	 my $fontdef = "$_[CONTROL]$_[ARG]";
@@ -472,16 +491,13 @@ my %value_ctrl =
 	 }
        }
        return;
-     }
-
-     return if $styledef;	# if you have already encountered an \sn
-     $styledef = "$_[CONTROL]$_[ARG]";
-
-     if ($IN_STYLESHEET) {	# eg. \f4 => Normal;
+     } elsif ($IN_STYLESHEET) {	# eg. \f1 => Normal;
+       return if $styledef;	# if you have already encountered an \sn
+       $styledef = "$_[CONTROL]$_[ARG]";
        if ($_[EVENT] eq 'start') {
 	 #trace "start $_[CONTROL]$_[ARG]" if STYLESHEET;
 	 push_output();
-	 $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+	 $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
        } else {
 	 my $stylename = pop_output;
 	 #trace "end\n $_[CONTROL]" if STYLESHEET;
@@ -489,14 +505,16 @@ my %value_ctrl =
 	   trace "$styledef => $stylename" if STYLESHEET_TRACE;
 	   $stylesheet{$styledef} = $stylename;
 	 } else {
-	   warn "can't analyze $stylename";
+	   warn "can't analyze '$stylename' ($styledef; event: $_[EVENT])";
 	 }
        }
        $styledef = '';
        return;
      }
-
+     return if $styledef;	# if you have already encountered an \sn
+     $styledef = "$_[CONTROL]$_[ARG]";
      $stylename = $stylesheet{"$styledef"};
+     trace "$styledef => $stylename" if STYLESHEET_TRACE;
      return unless $stylename;
 
      if ($cstylename ne $stylename) { # notify a style changing
@@ -505,18 +523,18 @@ my %value_ctrl =
 	 &$action;
        } 
      }
-
      $cstylename = $stylename;
+     $par_props{'stylename'} = $cstylename; # the current style 
    },
 				# 
 				# Style processing
 				# 
    'stylesheet' => sub {
-     #trace "stylesheet $#control $_[CONTROL] $_[ARG] $_[EVENT]";
+     trace "stylesheet $#control $_[CONTROL] $_[ARG] $_[EVENT]" if STYLESHEET_TRACE;
      if ($_[EVENT] eq 'start') { 
        $IN_STYLESHEET = 1 ;
        push_output('nul');
-       $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
      } else {
        $IN_STYLESHEET = 0;
        pop_output;
@@ -529,7 +547,7 @@ my %value_ctrl =
      if ($IN_STYLESHEET) {
        if ($_[EVENT] eq 'start') {
 	 push_output();
-	 $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+	 $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
        } else {
 	 my $stylename = pop_output;
 	 warn "empty stylename" and return if $stylename eq '';
@@ -545,15 +563,15 @@ my %value_ctrl =
      }
 
      $stylename = $stylesheet{"$styledef"};
-
      if ($cstylename ne $stylename) {
        if (defined (my $action = $do_on_event{'style_change'})) {
 	 ($style, $newstyle) = ($cstylename, $stylename);
 	 &$action;
        } 
      }
-
      $cstylename = $stylename;
+     $par_props{'stylename'} = $cstylename; # the current style 
+     trace "$styledef => $stylename" if STYLESHEET_TRACE;
    },
 				# a very minimal table processing
    'trowd' => sub {		# row start
@@ -561,6 +579,12 @@ my %value_ctrl =
      #print STDERR "=>Beginning of ROW\n";
      unless ($IN_TABLE) {
        $IN_TABLE = 1;
+       if (defined (my $action = $do_on_event{'table'})) {
+	 $event = 'start';
+	 trace "table $event $text\n" if TABLE_TRACE;
+	 &$action;
+       } 
+
        push_output();		# table content
        push_output();		# row  sequence
        push_output();		# cell sequence
@@ -570,7 +594,14 @@ my %value_ctrl =
    'intbl' => sub {
      $par_props{'intbl'} = 1;
      unless ($IN_TABLE) {
+       warn "ouverture en catastrophe" if TABLE_TRACE;
        $IN_TABLE = 1;
+       if (defined (my $action = $do_on_event{'table'})) {
+	 $event = 'start';
+	 trace "table $event $text\n" if TABLE_TRACE;
+	 &$action;
+       } 
+
        push_output();
        push_output();
        push_output();
@@ -654,25 +685,30 @@ my %value_ctrl =
      } else {
        $cstylename = $style = 'par'; # no better solution
      }
+     $par_props{'stylename'} = $cstylename; # the current style 
+
      if ($par_props{intbl}) {	# paragraph in tbl
        trace "process cell content: $text\n" if TABLE_TRACE;
        if (defined (my $action = $do_on_event{$style})) {
 	 ($style, $event, $text) = ($style, 'end', pop_output);
 	 &$action;
        } elsif (defined (my $action = $do_on_event{'par'})) {
-	 ($style, $event, $text) = ('par', 'end', pop_output);
+	 #($style, $event, $text) = ('par', 'end', pop_output);
+	 ($style, $event, $text) = ($style, 'end', pop_output);
 	 &$action;
        } else {
 	 warn;
        }
        push_output(); 
+     #} elsif (defined (my $action = $do_on_event{'par_styles'})) {
      } elsif (defined (my $action = $do_on_event{$style})) {
-       ($style, $event, $text) = ($cstylename, 'end', pop_output);
+       ($style, $event, $text) = ($style, 'end', pop_output);
        &$action;
        flush_output();
        push_output(); 
      } elsif (defined (my $action = $do_on_event{'par'})) {
-       ($style, $event, $text) = ('par', 'end', pop_output);
+       #($style, $event, $text) = ('par', 'end', pop_output);
+       ($style, $event, $text) = ($style, 'end', pop_output);
        &$action;
        flush_output();
        push_output(); 
@@ -681,8 +717,9 @@ my %value_ctrl =
        flush_output();
        push_output(); 
      }
+				# redefine this!!!
      $cli = $par_props{'li'};
-     $styledef = '';
+     $styledef = '';		
      $par_props{'bullet'} = $par_props{'number'} = $par_props{'tab'} = 0; # 
    },
 				# Resets to default paragraph properties
@@ -692,32 +729,102 @@ my %value_ctrl =
      foreach (qw(qj qc ql qr intbl li)) {
        $par_props{$_} = 0;
      }
-     $cstylename = '';		# ???
+     foreach (qw(list_item)) {
+       $par_props{$_} = '';
+     }
    },
-				# paragraph characteristics
-				# What is the Type of the list items?
-   'pntext' => sub {
-     #my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
-     #if ($_[ARG] == 0) { $cevent = 'end' }; # ???
-     #trace "pntext: ($_[CONTROL], $_[ARG], $_[EVENT])";
-     my $string;
+				# Fields and Bookmarks
+#   'field' => sub {  		# for a future version
+#     return;
+#     if ($_[EVENT] eq 'start') {
+#       push_output();
+#       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+#     } else {
+#       #trace "$_[CONTROL] content: ", pop_output();
+#       pop_output();
+#     }
+#   },
+#   'fldrslt' => sub {
+#     return;
+#     if ($_[EVENT] eq 'start') {
+#       push_output();
+#       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+#     } else {
+#       #trace "$_[CONTROL] content: ", pop_output();
+#       pop_output();
+#     }
+#   },
+#   'fldinst' => sub {		# Destination
+#     #return;
+#     if ($_[EVENT] eq 'start') {
+#       push_output();
+#       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+#     } else {
+#       trace "$_[CONTROL] content: ", pop_output();
+#     }
+#   },
+
+   'pn' => sub {  		# Turn on PARAGRAPH NUMBERING
+     #trace "($_[CONTROL], $_[ARG], $_[EVENT])" if TRACE;
+     if ($_[EVENT] eq 'start') {
+       %pn = ();
+       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+     } else {
+       # I don't like this!!! redesign the parser???
+       trace("Level: $pn{level} - Type: $pn{type} - Bullet: $pn{bullet}") if LIST_TRACE;
+       $par_props{list_item} = \%pn;
+     }
+   },
+   'pnlvl' => sub {		# Paragraph level $_[ARG] is a level from 1 to 9
+     $pn{level} = $_[ARG];
+   },
+   'pnlvlbody' => sub {		# Paragraph level 10
+     $pn{level} = 10;
+   },
+   'pnlvlblt' => sub {		# Paragraph level 11, processs the 'pntxtb' group
+     $pn{level} = 11;		# bullet
+   },
+  'pntxtb' => sub {
      if ($_[EVENT] eq 'start') { 
        push_output();
-       $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
      } else {
-       $string = pop_output();
-       $par_props{"$_[CONTROL]$_[ARG]"} = $string;
-       #trace qq!pntext: $par_props{"$_[CONTROL]$_[ARG]"} = $string!;
-
-				# will be improved in a next release
-       if ($string =~ s/^$bullet_item//o) { # Heuristic rules
-	 print STDERR "$bullet_item => $bullet_item\n";
-	 $par_props{'bullet'} = 1;
-       } elsif ($string =~ s/(\d+)[.]//) { # e.g. <i>1.</i>
-	 $par_props{'number'} = $1;
-       } else {
-	 # letter???
-       }
+       $pn{'bullet'} = pop_output();
+     }
+  },
+  'pntxta' => sub {
+     if ($_[EVENT] eq 'start') { 
+       push_output();
+       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+     } else {
+       pop_output();
+     }
+  },
+				# Numbering Types
+   'pncard' => sub {		# Cardinal numbering: One, Two, Three
+     $pn{type} = $_[CONTROL];
+   },
+   'pndec' => sub {		# Decimal numbering: 1, 2, 3
+     $pn{type} = $_[CONTROL];
+   },
+   'pnucltr' => sub {		# Uppercase alphabetic numbering
+     $pn{type} = $_[CONTROL];
+   },
+   'pnlcltr' => sub {		# Lowercase alphabetic numbering
+     $pn{type} = $_[CONTROL];
+   },
+   'pnucrm' => sub {		# Uppercase roman numbering
+     $pn{type} = $_[CONTROL];
+   },
+   'pnlcrm' => sub {		# Lowercase roman numbering
+     $pn{type} = $_[CONTROL];
+   },
+  'pntext' => sub {		# ignore text content
+     if ($_[EVENT] eq 'start') { 
+       push_output();
+       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+     } else {
+       pop_output();
      }
    },
    #'tab' => sub { $par_props{'tab'} = 1 }, # special char
@@ -763,7 +870,6 @@ sub groupEnd {			# on }
   $char_prop_change = 1;
   output process_char_props();
 
-				# is this useful?
   no strict qw/refs/;
   foreach my $control (keys %{pop @control}) { # End Events!
     $control =~ /([^\d]+)(\d+)?/; # eg: b0, b1
@@ -806,8 +912,9 @@ sub parseStart {
   if (defined (my $action = $do_on_event{'document'})) {
     $event = 'start';
     &$action;
-  } 
-  push_output();
+  }
+  #push_output();
+  flush_output();	
 }
 sub parseEnd {
   my $self = shift;
@@ -818,13 +925,18 @@ sub parseEnd {
     ($style, $event, $text) = ($cstylename, 'end', '');
     &$action;
   } 
-  my $content = pop_output;	
-  print pop_output, $content;
+  print_output_stack();
 }
 use vars qw(%not_processed);
 END {
   if (@control) {
-    trace "Stack not empty: ", @control+0;
+    trace "Control stack not empty [size: ", @control+0, "]: ";
+    foreach my $hash (@control) {
+      trace "$hash";
+      while (my($key, $value) = each %$hash) {
+	trace "$key => $value";
+      }
+    }
   }
   if ($LOG_FILE) {
     select STDERR;

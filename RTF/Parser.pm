@@ -5,7 +5,7 @@ require 5.004;
 use strict;
 package RTF::Parser;
 
-$RTF::Parser::VERSION = "1.03";
+$RTF::Parser::VERSION = "1.04";
 use RTF::Config;
 use File::Basename;
 
@@ -30,7 +30,7 @@ sub parseStream {
     $self->{filename} = $stream;     # Assume $stream is a filename
     open(F, $stream) or die "Can't open '$stream' ($!)";
   }
-  binmode(F) unless $OS eq 'UNIX'; # or something like this
+  binmode(F); # or something like this
   $self->{filehandle} = \*F;
   $self->{'eof'} = 0;
   local *if_data_needed = \&read;
@@ -85,7 +85,6 @@ if ($OS eq 'UNIX') {
 			
 # interface must change if you want to write: $self->$1($1, $2);
 # $self->$control($control, $arg, 'start');
-
 my $DO_ON_CONTROL = \%RTF::Control::do_on_control; # default
 sub controlDefinition {
   my $self = shift;
@@ -99,7 +98,6 @@ sub controlDefinition {
     $DO_ON_CONTROL;
   }
 }
-
 { package RTF::Action;		
   use RTF::Config;
 
@@ -122,7 +120,7 @@ sub controlDefinition {
   }
 }
 sub DESTROY {}
-			# Class API
+			# API
 sub parseStart {}
 sub parseEnd {}
 sub groupStart {}
@@ -148,7 +146,7 @@ my $CONTROL_SYMBOLS = q![-_~:|{}*\'\\\\]!; # Symbols (Special characters)
 my $DESTINATION = '[*]';	# 
 my $DESTINATION_CONTENT = '(?:[^\\\\{}]+|\\\\.)+'; 
 my $HEXA = q![0-9abcdef][0-9abcdef]!;
-my $PLAINTEXT = '[^{}\\\\]+(?:\\\\\\\\[^{}\\\\]*)*'; 
+my $PLAINTEXT = '[^{}\\\\]+'; 
 my $BITMAP_START = '\\\\{bm(?:[clr]|cwd) '; # Ex.: \{bmcwd 
 my $BITMAP_END = q!\\\\}!;
 my $BITMAP_FILE = '(?:[^\\\\{}]+|\\\\[^{}])+'; 

@@ -19,28 +19,31 @@ select(STDOUT);
 require RTF::HTML::Output;
 my $self = new RTF::HTML::Output;	
 
-#foreach my $filename (@ARGV) {
-#  $self->parseStream($filename);
-#}
-while (<DATA>) {
-  next if /^#/;
-  print STDERR "-" x 30, "\n";
-  print STDERR "RTF string: $_";
-  print STDERR "-" x 30, "\n";
-  $self->parseString($_);
+if (@ARGV)  {
+  foreach my $filename (@ARGV) {
+    $self->parseStream($filename);
+  }
+} else {
+  while (<DATA>) {
+    s/\#.*//;
+    next unless /\S/;
+    print STDERR "-" x 30, "\n";
+    print STDERR "RTF string: $_";
+    print STDERR "-" x 30, "\n";
+    $self->parseString($_);
+  }
 }
 __END__
-#{}
-#{\par}
-#{string\par}
-#{\b bold {\i italic} \par}
-#{\b introduction \par }
+#{} # Ok!
+#{\par} # !Ok
+#{string\par} # !Ok
+#{\b bold {\i italic} bold \par} # !Ok
+#{\b introduction \par } # !Ok
 #{\b first B{\b0 mm{\b b}m}b}
 #{\b first B{\b0 mm{\b b}m}b\par}
-#{\i {\b first B{\b0 mm{\b b}m}b\par second B}}
+{\i {\b first B{\b0 mm{\b b}m}b\par second B}}
 #{{\par }\b {Introduction\par }}
-#{\b before \par{\i Introduction\par }}
-{\b bold \i Bold Italic \i0 Bold again}
-{\b bold {\i Bold Italic }Bold again}
-{\b bold \i Bold Italic \plain\b Bold again}
-{\pard\plain \b{Introduction\par }}
+#{\pard\plain \b{Introduction\par }}
+#{\b bold \i Bold Italic \i0 Bold again} # Ok!
+#{\b bold {\i Bold Italic }Bold again} # Ok!
+#{\b bold \i Bold Italic \plain\b Bold again} # Ok!
