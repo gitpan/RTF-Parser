@@ -1,3 +1,9 @@
+1.8_1 Thu 28 August 2003, 10:00pm GBT
+
++ Rewrote all of RTF::Parser
++ Documented RTF::Parser's interface
++ Added a nice big sample in the docs 
+
 1.7 mercredi, 28 juillet 1999, 12:10:54 MET DST
 
 - Corrected problem with the loading of the char_map file

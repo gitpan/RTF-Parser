@@ -1,44 +1,48 @@
 # This Makefile is for the RTF::Parser extension to perl.
 #
 # It was generated automatically by MakeMaker version
-# 5.4301 (Revision: 1.222) from the contents of
+# 6.03 (Revision: 1.63) from the contents of
 # Makefile.PL. Don't edit this file, edit Makefile.PL instead.
 #
-#	ANY CHANGES MADE HERE WILL BE LOST!
+#       ANY CHANGES MADE HERE WILL BE LOST!
+#
+#   MakeMaker ARGV: ()
 #
 #   MakeMaker Parameters:
 
-#	DISTNAME => q[RTF-Parser]
-#	EXE_FILES => [q[rtf2html], q[rtf2text]]
-#	NAME => q[RTF::Parser]
-#	VERSION_FROM => q[lib/RTF/Parser.pm]
-#	dist => { COMPRESS=>q[gzip], SUFFIX=>q[gz] }
+#     DISTNAME => q[RTF-Parser]
+#     EXE_FILES => [q[rtf2html], q[rtf2text]]
+#     NAME => q[RTF::Parser]
+#     PREREQ_PM => { RTF::Tokenizer=>q[1.01] }
+#     VERSION_FROM => q[lib/RTF/Parser.pm]
+#     dist => { COMPRESS=>q[gzip], SUFFIX=>q[gz] }
 
 # --- MakeMaker post_initialize section:
 
 
 # --- MakeMaker const_config section:
 
-# These definitions are from config.sh (via /usr/local/lib/perl5/5.00502/sun4-solaris/Config.pm)
+# These definitions are from config.sh (via /Library/Perl/darwin/Config.pm)
 
 # They may have been overridden via Makefile.PL or on the command line
 AR = ar
-CC = gcc
-CCCDLFLAGS = -fPIC
+CC = cc
+CCCDLFLAGS =  
 CCDLFLAGS =  
-DLEXT = so
-DLSRC = dl_dlopen.xs
-LD = gcc
-LDDLFLAGS = -G -L/usr/local/lib
-LDFLAGS =  -L/usr/local/lib
-LIBC = /lib/libc.so
+DLEXT = bundle
+DLSRC = dl_dyld.xs
+LD = cc
+LDDLFLAGS =  -flat_namespace -bundle -undefined suppress
+LDFLAGS =  -flat_namespace
+LIBC = /usr/lib/libc.dylib
 LIB_EXT = .a
 OBJ_EXT = .o
-OSNAME = solaris
-OSVERS = 2.5.1
-RANLIB = :
-SO = so
+OSNAME = darwin
+OSVERS = 6.6
+RANLIB = /usr/bin/ar ts
+SO = dylib
 EXE_EXT = 
+FULL_AR = /usr/bin/ar
 
 
 # --- MakeMaker constants section:
@@ -46,45 +50,61 @@ AR_STATIC_ARGS = cr
 NAME = RTF::Parser
 DISTNAME = RTF-Parser
 NAME_SYM = RTF_Parser
-VERSION = 1.07
-VERSION_SYM = 1_07
-XS_VERSION = 1.07
-INST_BIN = blib/bin
-INST_EXE = blib/script
-INST_LIB = blib/lib
+VERSION = 1.08_1
+VERSION_SYM = 1_08_1
+XS_VERSION = 1.08_1
 INST_ARCHLIB = blib/arch
 INST_SCRIPT = blib/script
-PREFIX = /usr/local
+INST_BIN = blib/bin
+INST_LIB = blib/lib
 INSTALLDIRS = site
-INSTALLPRIVLIB = $(PREFIX)/lib/perl5/5.00502
-INSTALLARCHLIB = $(PREFIX)/lib/perl5/5.00502/sun4-solaris
-INSTALLSITELIB = $(PREFIX)/lib/perl5/site_perl/5.005
-INSTALLSITEARCH = $(PREFIX)/lib/perl5/site_perl/5.005/sun4-solaris
-INSTALLBIN = $(PREFIX)/bin
-INSTALLSCRIPT = $(PREFIX)/bin
-PERL_LIB = /usr/local/lib/perl5/5.00502
-PERL_ARCHLIB = /usr/local/lib/perl5/5.00502/sun4-solaris
-SITELIBEXP = /usr/local/lib/perl5/site_perl/5.005
-SITEARCHEXP = /usr/local/lib/perl5/site_perl/5.005/sun4-solaris
+PREFIX = /usr/local
+SITEPREFIX = /usr/local
+VENDORPREFIX = /usr/local
+INSTALLPRIVLIB = /Library/Perl
+INSTALLSITELIB = /Library/Perl
+INSTALLVENDORLIB = /Network/Library/Perl
+INSTALLARCHLIB = /Library/Perl/darwin
+INSTALLSITEARCH = /Library/Perl/darwin
+INSTALLVENDORARCH = /Network/Library/Perl/darwin
+INSTALLBIN = /usr/local/bin
+INSTALLSITEBIN = /usr/local/bin
+INSTALLVENDORBIN = /usr/local/bin
+INSTALLSCRIPT = /usr/local/bin
+PERL_LIB = /Library/Perl
+PERL_ARCHLIB = /Library/Perl/darwin
+SITELIBEXP = /Library/Perl
+SITEARCHEXP = /Library/Perl/darwin
 LIBPERL_A = libperl.a
 FIRST_MAKEFILE = Makefile
 MAKE_APERL_FILE = Makefile.aperl
 PERLMAINCC = $(CC)
-PERL_INC = /usr/local/lib/perl5/5.00502/sun4-solaris/CORE
-PERL = /usr/local/bin/perl
-FULLPERL = /usr/local/bin/perl
+PERL_INC = /Library/Perl/darwin/CORE
+PERL = /usr/bin/perl
+FULLPERL = /usr/bin/perl
+PERLRUN = $(PERL)
+FULLPERLRUN = $(FULLPERL)
+PERLRUNINST = $(PERLRUN) "-I$(INST_ARCHLIB)" "-I$(INST_LIB)"
+FULLPERLRUNINST = $(FULLPERLRUN) "-I$(INST_ARCHLIB)" "-I$(INST_LIB)"
+ABSPERL = $(PERL)
+ABSPERLRUN = $(ABSPERL)
+ABSPERLRUNINST = $(ABSPERLRUN) "-I$(INST_ARCHLIB)" "-I$(INST_LIB)"
+FULL_AR = /usr/bin/ar
+PERL_CORE = 0
+NOOP = $(SHELL) -c true
+NOECHO = @
 
 VERSION_MACRO = VERSION
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
+PERL_MALLOC_DEF = -DPERL_EXTMALLOC_DEF -Dmalloc=Perl_malloc -Dfree=Perl_mfree -Drealloc=Perl_realloc -Dcalloc=Perl_calloc
 
-MAKEMAKER = /usr/local/lib/perl5/5.00502/ExtUtils/MakeMaker.pm
-MM_VERSION = 5.4301
+MAKEMAKER = /Library/Perl/ExtUtils/MakeMaker.pm
+MM_VERSION = 6.03
 
 # FULLEXT = Pathname for extension directory (eg Foo/Bar/Oracle).
 # BASEEXT = Basename part of FULLEXT. May be just equal FULLEXT. (eg Oracle)
-# ROOTEXT = Directory part of FULLEXT with leading slash (eg /DBD)  !!! Deprecated from MM 5.32  !!!
 # PARENT_NAME = NAME without BASEEXT and no trailing :: (eg Foo::Bar)
 # DLBASE  = Basename part of dynamic library. May be just equal BASEEXT.
 FULLEXT = RTF/Parser
@@ -102,20 +122,24 @@ C_FILES =
 O_FILES = 
 H_FILES = 
 MAN1PODS = 
-MAN3PODS = 
+MAN3PODS = lib/RTF/Parser.pm
 INST_MAN1DIR = blib/man1
-INSTALLMAN1DIR = /usr/local/man/man1
 MAN1EXT = 1
+INSTALLMAN1DIR = /usr/local/share/man/man1
+INSTALLSITEMAN1DIR = /usr/local/man/man$(MAN1EXT)
+INSTALLVENDORMAN1DIR = /usr/local/man/man$(MAN1EXT)
 INST_MAN3DIR = blib/man3
-INSTALLMAN3DIR = /usr/local/lib/perl5/5.00502/man/man3
 MAN3EXT = 3
+INSTALLMAN3DIR = /usr/local/share/man/man3
+INSTALLSITEMAN3DIR = /usr/local/man/man$(MAN3EXT)
+INSTALLVENDORMAN3DIR = /usr/local/man/man$(MAN3EXT)
 PERM_RW = 644
 PERM_RWX = 755
 
 # work around a famous dec-osf make(1) feature(?):
 makemakerdflt: all
 
-.SUFFIXES: .xs .c .C .cpp .cxx .cc $(OBJ_EXT)
+.SUFFIXES: .xs .c .C .cpp .i .s .cxx .cc $(OBJ_EXT)
 
 # Nick wanted to get rid of .PRECIOUS. I don't remember why. I seem to recall, that
 # some make implementations will delete the Makefile when we rebuild it. Because
@@ -143,6 +167,8 @@ EXPORT_LIST =
 
 PERL_ARCHIVE = 
 
+PERL_ARCHIVE_AFTER = 
+
 TO_INST_PM = lib/RTF/Charsets.pm \
 	lib/RTF/Config.pm \
 	lib/RTF/Control.pm \
@@ -154,32 +180,32 @@ TO_INST_PM = lib/RTF/Charsets.pm \
 	lib/RTF/TEXT/ansi \
 	lib/RTF/TEXT/char_map
 
-PM_TO_BLIB = lib/RTF/TEXT/char_map \
-	$(INST_LIB)/RTF/TEXT/char_map \
-	lib/RTF/TEXT/ansi \
-	$(INST_LIB)/RTF/TEXT/ansi \
-	lib/RTF/TEXT/Converter.pm \
-	$(INST_LIB)/RTF/TEXT/Converter.pm \
+PM_TO_BLIB = lib/RTF/Config.pm \
+	blib/lib/RTF/Config.pm \
 	lib/RTF/HTML/Converter.pm \
-	$(INST_LIB)/RTF/HTML/Converter.pm \
-	lib/RTF/HTML/char_map \
-	$(INST_LIB)/RTF/HTML/char_map \
+	blib/lib/RTF/HTML/Converter.pm \
 	lib/RTF/HTML/ansi \
-	$(INST_LIB)/RTF/HTML/ansi \
-	lib/RTF/Charsets.pm \
-	$(INST_LIB)/RTF/Charsets.pm \
-	lib/RTF/Parser.pm \
-	$(INST_LIB)/RTF/Parser.pm \
-	lib/RTF/Config.pm \
-	$(INST_LIB)/RTF/Config.pm \
+	blib/lib/RTF/HTML/ansi \
+	lib/RTF/TEXT/char_map \
+	blib/lib/RTF/TEXT/char_map \
+	lib/RTF/TEXT/ansi \
+	blib/lib/RTF/TEXT/ansi \
+	lib/RTF/TEXT/Converter.pm \
+	blib/lib/RTF/TEXT/Converter.pm \
 	lib/RTF/Control.pm \
-	$(INST_LIB)/RTF/Control.pm
+	blib/lib/RTF/Control.pm \
+	lib/RTF/HTML/char_map \
+	blib/lib/RTF/HTML/char_map \
+	lib/RTF/Charsets.pm \
+	blib/lib/RTF/Charsets.pm \
+	lib/RTF/Parser.pm \
+	blib/lib/RTF/Parser.pm
 
 
 # --- MakeMaker tool_autosplit section:
-
 # Usage: $(AUTOSPLITFILE) FileToSplit AutoDirToSplitInto
-AUTOSPLITFILE = $(PERL) "-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" -e 'use AutoSplit;autosplit($$ARGV[0], $$ARGV[1], 0, 1, 1) ;'
+AUTOSPLITFILE = $(PERLRUN) -e 'use AutoSplit;  autosplit($$ARGV[0], $$ARGV[1], 0, 1, 1) ;'
+
 
 
 # --- MakeMaker tool_xsubpp section:
@@ -190,7 +216,7 @@ AUTOSPLITFILE = $(PERL) "-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" -e 'use AutoSplit;au
 SHELL = /bin/sh
 CHMOD = chmod
 CP = cp
-LD = gcc
+LD = cc
 MV = mv
 NOOP = $(SHELL) -c true
 RM_F = rm -f
@@ -202,13 +228,13 @@ DEV_NULL = > /dev/null 2>&1
 
 # The following is a portable way to say mkdir -p
 # To see which directories are created, change the if 0 to if 1
-MKPATH = $(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -MExtUtils::Command -e mkpath
+MKPATH = $(PERLRUN) "-MExtUtils::Command" -e mkpath
 
 # This helps us to minimize the effect of the .exists files A yet
 # better solution would be to have a stable file in the perl
 # distribution with a timestamp of zero. But this solution doesn't
 # need any changes to the core distribution and works with older perls
-EQUALIZE_TIMESTAMP = $(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -MExtUtils::Command -e eqtime
+EQUALIZE_TIMESTAMP = $(PERLRUN) "-MExtUtils::Command" -e eqtime
 
 # Here we warn users that an old packlist file was found somewhere,
 # and that they should call some uninstall routine
@@ -218,40 +244,39 @@ WARN_IF_OLD_PACKLIST = $(PERL) -we 'exit unless -f $$ARGV[0];' \
 -e 'print "Please make sure the two installations are not conflicting\n";'
 
 UNINST=0
-VERBINST=1
+VERBINST=0
 
-MOD_INSTALL = $(PERL) -I$(INST_LIB) -I$(PERL_LIB) -MExtUtils::Install \
+MOD_INSTALL = $(PERL) "-I$(INST_LIB)" "-I$(PERL_LIB)" "-MExtUtils::Install" \
 -e "install({@ARGV},'$(VERBINST)',0,'$(UNINST)');"
 
 DOC_INSTALL = $(PERL) -e '$$\="\n\n";' \
--e 'print "=head2 ", scalar(localtime), ": C<", shift, ">", " L<", shift, ">";' \
+-e 'print "=head2 ", scalar(localtime), ": C<", shift, ">", " L<", $$arg=shift, "|", $$arg, ">";' \
 -e 'print "=over 4";' \
 -e 'while (defined($$key = shift) and defined($$val = shift)){print "=item *";print "C<$$key: $$val>";}' \
 -e 'print "=back";'
 
-UNINSTALL =   $(PERL) -MExtUtils::Install \
+UNINSTALL =   $(PERLRUN) "-MExtUtils::Install" \
 -e 'uninstall($$ARGV[0],1,1); print "\nUninstall is deprecated. Please check the";' \
 -e 'print " packlist above carefully.\n  There may be errors. Remove the";' \
 -e 'print " appropriate files manually.\n  Sorry for the inconveniences.\n"'
 
 
 # --- MakeMaker dist section:
-
-DISTVNAME = $(DISTNAME)-$(VERSION)
-TAR  = tar
-TARFLAGS = cvf
-ZIP  = zip
 ZIPFLAGS = -r
-COMPRESS = gzip
-SUFFIX = gz
-SHAR = shar
-PREOP = @$(NOOP)
-POSTOP = @$(NOOP)
 TO_UNIX = @$(NOOP)
-CI = ci -u
-RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
-DIST_CP = best
+TAR = tar
+POSTOP = @$(NOOP)
+ZIP = zip
 DIST_DEFAULT = tardist
+CI = ci -u
+SHAR = shar
+COMPRESS = gzip
+DIST_CP = best
+PREOP = @$(NOOP)
+TARFLAGS = cvf
+DISTVNAME = $(DISTNAME)-$(VERSION)
+SUFFIX = gz
+RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 
 
 # --- MakeMaker macro section:
@@ -278,7 +303,9 @@ PASTHRU = LIB="$(LIB)"\
 	LIBPERL_A="$(LIBPERL_A)"\
 	LINKTYPE="$(LINKTYPE)"\
 	PREFIX="$(PREFIX)"\
-	OPTIMIZE="$(OPTIMIZE)"
+	OPTIMIZE="$(OPTIMIZE)"\
+	PASTHRU_DEFINE="$(PASTHRU_DEFINE)"\
+	PASTHRU_INC="$(PASTHRU_INC)"
 
 
 # --- MakeMaker c_o section:
@@ -291,8 +318,6 @@ PASTHRU = LIB="$(LIB)"\
 
 
 # --- MakeMaker top_targets section:
-
-#all ::	config $(INST_PM) subdirs linkext manifypods
 
 all :: pure_all manifypods
 	@$(NOOP)
@@ -312,35 +337,36 @@ config :: $(INST_ARCHAUTODIR)/.exists
 config :: $(INST_AUTODIR)/.exists
 	@$(NOOP)
 
-config :: Version_check
-	@$(NOOP)
-
-
-$(INST_AUTODIR)/.exists :: /usr/local/lib/perl5/5.00502/sun4-solaris/CORE/perl.h
+$(INST_AUTODIR)/.exists :: /Library/Perl/darwin/CORE/perl.h
 	@$(MKPATH) $(INST_AUTODIR)
-	@$(EQUALIZE_TIMESTAMP) /usr/local/lib/perl5/5.00502/sun4-solaris/CORE/perl.h $(INST_AUTODIR)/.exists
+	@$(EQUALIZE_TIMESTAMP) /Library/Perl/darwin/CORE/perl.h $(INST_AUTODIR)/.exists
 
 	-@$(CHMOD) $(PERM_RWX) $(INST_AUTODIR)
 
-$(INST_LIBDIR)/.exists :: /usr/local/lib/perl5/5.00502/sun4-solaris/CORE/perl.h
+$(INST_LIBDIR)/.exists :: /Library/Perl/darwin/CORE/perl.h
 	@$(MKPATH) $(INST_LIBDIR)
-	@$(EQUALIZE_TIMESTAMP) /usr/local/lib/perl5/5.00502/sun4-solaris/CORE/perl.h $(INST_LIBDIR)/.exists
+	@$(EQUALIZE_TIMESTAMP) /Library/Perl/darwin/CORE/perl.h $(INST_LIBDIR)/.exists
 
 	-@$(CHMOD) $(PERM_RWX) $(INST_LIBDIR)
 
-$(INST_ARCHAUTODIR)/.exists :: /usr/local/lib/perl5/5.00502/sun4-solaris/CORE/perl.h
+$(INST_ARCHAUTODIR)/.exists :: /Library/Perl/darwin/CORE/perl.h
 	@$(MKPATH) $(INST_ARCHAUTODIR)
-	@$(EQUALIZE_TIMESTAMP) /usr/local/lib/perl5/5.00502/sun4-solaris/CORE/perl.h $(INST_ARCHAUTODIR)/.exists
+	@$(EQUALIZE_TIMESTAMP) /Library/Perl/darwin/CORE/perl.h $(INST_ARCHAUTODIR)/.exists
 
 	-@$(CHMOD) $(PERM_RWX) $(INST_ARCHAUTODIR)
 
+config :: $(INST_MAN3DIR)/.exists
+	@$(NOOP)
+
+
+$(INST_MAN3DIR)/.exists :: /Library/Perl/darwin/CORE/perl.h
+	@$(MKPATH) $(INST_MAN3DIR)
+	@$(EQUALIZE_TIMESTAMP) /Library/Perl/darwin/CORE/perl.h $(INST_MAN3DIR)/.exists
+
+	-@$(CHMOD) $(PERM_RWX) $(INST_MAN3DIR)
+
 help:
 	perldoc ExtUtils::MakeMaker
-
-Version_check:
-	@$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) \
-		-MExtUtils::MakeMaker=Version_check \
-		-e "Version_check('$(MM_VERSION)')"
 
 
 # --- MakeMaker linkext section:
@@ -382,28 +408,35 @@ static :: Makefile $(INST_STATIC)
 
 
 # --- MakeMaker manifypods section:
+POD2MAN_EXE = /usr/local/bin/pod2man
+POD2MAN = $(PERL) -we '%m=@ARGV;for (keys %m){' \
+-e 'next if -e $$m{$$_} && -M $$m{$$_} < -M $$_ && -M $$m{$$_} < -M "Makefile";' \
+-e 'print "Manifying $$m{$$_}\n";' \
+-e 'system(q[$(PERLRUN) $(POD2MAN_EXE) ].qq[$$_>$$m{$$_}])==0 or warn "Couldn\047t install $$m{$$_}\n";' \
+-e 'chmod(oct($(PERM_RW)), $$m{$$_}) or warn "chmod $(PERM_RW) $$m{$$_}: $$!\n";}'
 
-manifypods : pure_all
-	@$(NOOP)
-
+manifypods : pure_all lib/RTF/Parser.pm
+	@$(POD2MAN) \
+	lib/RTF/Parser.pm \
+	$(INST_MAN3DIR)/RTF::Parser.$(MAN3EXT)
 
 # --- MakeMaker processPL section:
 
 
 # --- MakeMaker installbin section:
 
-$(INST_SCRIPT)/.exists :: /usr/local/lib/perl5/5.00502/sun4-solaris/CORE/perl.h
+$(INST_SCRIPT)/.exists :: /Library/Perl/darwin/CORE/perl.h
 	@$(MKPATH) $(INST_SCRIPT)
-	@$(EQUALIZE_TIMESTAMP) /usr/local/lib/perl5/5.00502/sun4-solaris/CORE/perl.h $(INST_SCRIPT)/.exists
+	@$(EQUALIZE_TIMESTAMP) /Library/Perl/darwin/CORE/perl.h $(INST_SCRIPT)/.exists
 
 	-@$(CHMOD) $(PERM_RWX) $(INST_SCRIPT)
 
 EXE_FILES = rtf2html rtf2text
 
-FIXIN = $(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -MExtUtils::MakeMaker \
+FIXIN = $(PERLRUN) "-MExtUtils::MY" \
     -e "MY->fixin(shift)"
 
-all :: $(INST_SCRIPT)/rtf2text $(INST_SCRIPT)/rtf2html
+pure_all :: $(INST_SCRIPT)/rtf2text $(INST_SCRIPT)/rtf2html
 	@$(NOOP)
 
 realclean ::
@@ -432,7 +465,7 @@ $(INST_SCRIPT)/rtf2html: rtf2html Makefile $(INST_SCRIPT)/.exists
 # the Makefile here so a later make realclean still has a makefile to use.
 
 clean ::
-	-rm -rf ./blib $(MAKE_APERL_FILE) $(INST_ARCHAUTODIR)/extralibs.all perlmain.c mon.out core so_locations pm_to_blib *~ */*~ */*/*~ *$(OBJ_EXT) *$(LIB_EXT) perl.exe $(BOOTSTRAP) $(BASEEXT).bso $(BASEEXT).def $(BASEEXT).exp
+	-rm -rf ./blib $(MAKE_APERL_FILE) $(INST_ARCHAUTODIR)/extralibs.all perlmain.c tmon.out mon.out so_locations pm_to_blib *$(OBJ_EXT) *$(LIB_EXT) perl.exe perl perl$(EXE_EXT) $(BOOTSTRAP) $(BASEEXT).bso $(BASEEXT).def lib$(BASEEXT).def $(BASEEXT).exp $(BASEEXT).x core core.*perl.*.? *perl.core
 	-mv Makefile Makefile.old $(DEV_NULL)
 
 
@@ -441,25 +474,30 @@ clean ::
 # Delete temporary files (via clean) and also delete installed files
 realclean purge ::  clean
 	rm -rf $(INST_AUTODIR) $(INST_ARCHAUTODIR)
-	rm -f $(INST_LIB)/RTF/TEXT/char_map $(INST_LIB)/RTF/TEXT/ansi $(INST_LIB)/RTF/TEXT/Converter.pm $(INST_LIB)/RTF/HTML/Converter.pm $(INST_LIB)/RTF/HTML/char_map $(INST_LIB)/RTF/HTML/ansi $(INST_LIB)/RTF/Charsets.pm $(INST_LIB)/RTF/Parser.pm $(INST_LIB)/RTF/Config.pm $(INST_LIB)/RTF/Control.pm
+	rm -rf $(DISTVNAME)
+	rm -f  blib/lib/RTF/Config.pm blib/lib/RTF/HTML/Converter.pm blib/lib/RTF/HTML/ansi
+	rm -f blib/lib/RTF/TEXT/char_map blib/lib/RTF/TEXT/ansi blib/lib/RTF/TEXT/Converter.pm
+	rm -f blib/lib/RTF/Control.pm blib/lib/RTF/HTML/char_map blib/lib/RTF/Charsets.pm
+	rm -f blib/lib/RTF/Parser.pm
 	rm -rf Makefile Makefile.old
 
 
 # --- MakeMaker dist_basics section:
-
 distclean :: realclean distcheck
+	$(NOECHO) $(NOOP)
 
 distcheck :
-	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -MExtUtils::Manifest=fullcheck \
-		-e fullcheck
+	$(PERLRUN) "-MExtUtils::Manifest=fullcheck" -e fullcheck
 
 skipcheck :
-	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -MExtUtils::Manifest=skipcheck \
-		-e skipcheck
+	$(PERLRUN) "-MExtUtils::Manifest=skipcheck" -e skipcheck
 
 manifest :
-	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -MExtUtils::Manifest=mkmanifest \
-		-e mkmanifest
+	$(PERLRUN) "-MExtUtils::Manifest=mkmanifest" -e mkmanifest
+
+veryclean : realclean
+	$(RM_F) *~ *.orig */*~ */*.orig
+
 
 
 # --- MakeMaker dist_core section:
@@ -499,25 +537,25 @@ shdist : distdir
 
 
 # --- MakeMaker dist_dir section:
-
 distdir :
 	$(RM_RF) $(DISTVNAME)
-	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -MExtUtils::Manifest=manicopy,maniread \
+	$(PERLRUN) "-MExtUtils::Manifest=manicopy,maniread" \
 		-e "manicopy(maniread(),'$(DISTVNAME)', '$(DIST_CP)');"
+
 
 
 # --- MakeMaker dist_test section:
 
 disttest : distdir
-	cd $(DISTVNAME) && $(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) Makefile.PL
-	cd $(DISTVNAME) && $(MAKE)
-	cd $(DISTVNAME) && $(MAKE) test
+	cd $(DISTVNAME) && $(ABSPERLRUN) Makefile.PL
+	cd $(DISTVNAME) && $(MAKE) $(PASTHRU)
+	cd $(DISTVNAME) && $(MAKE) test $(PASTHRU)
 
 
 # --- MakeMaker dist_ci section:
 
 ci :
-	$(PERL) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -MExtUtils::Manifest=maniread \
+	$(PERLRUN) "-MExtUtils::Manifest=maniread" \
 		-e "@all = keys %{ maniread() };" \
 		-e 'print("Executing $(CI) @all\n"); system("$(CI) @all");' \
 		-e 'print("Executing $(RCS_LABEL) ...\n"); system("$(RCS_LABEL) @all");'
@@ -531,8 +569,7 @@ install_perl :: all pure_perl_install doc_perl_install
 
 install_site :: all pure_site_install doc_site_install
 
-install_ :: install_site
-	@echo INSTALLDIRS not defined, defaulting to INSTALLDIRS=site
+install_vendor :: all pure_vendor_install doc_vendor_install
 
 pure_install :: pure_$(INSTALLDIRS)_install
 
@@ -565,14 +602,24 @@ pure_site_install ::
 		write $(INSTALLSITEARCH)/auto/$(FULLEXT)/.packlist \
 		$(INST_LIB) $(INSTALLSITELIB) \
 		$(INST_ARCHLIB) $(INSTALLSITEARCH) \
-		$(INST_BIN) $(INSTALLBIN) \
+		$(INST_BIN) $(INSTALLSITEBIN) \
 		$(INST_SCRIPT) $(INSTALLSCRIPT) \
-		$(INST_MAN1DIR) $(INSTALLMAN1DIR) \
-		$(INST_MAN3DIR) $(INSTALLMAN3DIR)
+		$(INST_MAN1DIR) $(INSTALLSITEMAN1DIR) \
+		$(INST_MAN3DIR) $(INSTALLSITEMAN3DIR)
 	@$(WARN_IF_OLD_PACKLIST) \
 		$(PERL_ARCHLIB)/auto/$(FULLEXT)
 
+pure_vendor_install ::
+	@$(MOD_INSTALL) \
+		$(INST_LIB) $(INSTALLVENDORLIB) \
+		$(INST_ARCHLIB) $(INSTALLVENDORARCH) \
+		$(INST_BIN) $(INSTALLVENDORBIN) \
+		$(INST_SCRIPT) $(INSTALLSCRIPT) \
+		$(INST_MAN1DIR) $(INSTALLVENDORMAN1DIR) \
+		$(INST_MAN3DIR) $(INSTALLVENDORMAN3DIR)
+
 doc_perl_install ::
+	-@$(MKPATH) $(INSTALLARCHLIB)
 	-@$(DOC_INSTALL) \
 		"Module" "$(NAME)" \
 		"installed into" "$(INSTALLPRIVLIB)" \
@@ -582,13 +629,16 @@ doc_perl_install ::
 		>> $(INSTALLARCHLIB)/perllocal.pod
 
 doc_site_install ::
+	-@$(MKPATH) $(INSTALLARCHLIB)
 	-@$(DOC_INSTALL) \
 		"Module" "$(NAME)" \
 		"installed into" "$(INSTALLSITELIB)" \
 		LINKTYPE "$(LINKTYPE)" \
 		VERSION "$(VERSION)" \
 		EXE_FILES "$(EXE_FILES)" \
-		>> $(INSTALLARCHLIB)/perllocal.pod
+		>> $(INSTALLSITEARCH)/perllocal.pod
+
+doc_vendor_install ::
 
 
 uninstall :: uninstall_from_$(INSTALLDIRS)dirs
@@ -619,29 +669,25 @@ Makefile : Makefile.PL $(CONFIGDEP)
 	-@$(RM_F) Makefile.old
 	-@$(MV) Makefile Makefile.old
 	-$(MAKE) -f Makefile.old clean $(DEV_NULL) || $(NOOP)
-	$(PERL) "-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" Makefile.PL 
+	$(PERLRUN) Makefile.PL 
 	@echo "==> Your Makefile has been rebuilt. <=="
 	@echo "==> Please rerun the make command.  <=="
 	false
 
-# To change behavior to :: would be nice, but would break Tk b9.02
-# so you find such a warning below the dist target.
-#Makefile :: $(VERSION_FROM)
-#	@echo "Warning: Makefile possibly out of date with $(VERSION_FROM)"
 
 
 # --- MakeMaker staticmake section:
 
 # --- MakeMaker makeaperl section ---
 MAP_TARGET    = perl
-FULLPERL      = /usr/local/bin/perl
+FULLPERL      = /usr/bin/perl
 
 $(MAP_TARGET) :: static $(MAKE_APERL_FILE)
 	$(MAKE) -f $(MAKE_APERL_FILE) $@
 
 $(MAKE_APERL_FILE) : $(FIRST_MAKEFILE)
 	@echo Writing \"$(MAKE_APERL_FILE)\" for this $(MAP_TARGET)
-	@$(PERL) -I$(INST_ARCHLIB) -I$(INST_LIB) -I$(PERL_ARCHLIB) -I$(PERL_LIB) \
+	@$(PERLRUNINST) \
 		Makefile.PL DIR= \
 		MAKEFILE=$(MAKE_APERL_FILE) LINKTYPE=static \
 		MAKEAPERL=1 NORECURS=1 CCCDLFLAGS=
@@ -660,10 +706,10 @@ testdb :: testdb_$(LINKTYPE)
 test :: $(TEST_TYPE)
 
 test_dynamic :: pure_all
-	PERL_DL_NONLAZY=1 $(FULLPERL) -I$(INST_ARCHLIB) -I$(INST_LIB) -I$(PERL_ARCHLIB) -I$(PERL_LIB) -e 'use Test::Harness qw(&runtests $$verbose); $$verbose=$(TEST_VERBOSE); runtests @ARGV;' $(TEST_FILES)
+	PERL_DL_NONLAZY=1 $(FULLPERLRUN) "-MExtUtils::Command::MM" "-e" "test_harness($(TEST_VERBOSE), '$(INST_LIB)', '$(INST_ARCHLIB)')" $(TEST_FILES)
 
 testdb_dynamic :: pure_all
-	PERL_DL_NONLAZY=1 $(FULLPERL) $(TESTDB_SW) -I$(INST_ARCHLIB) -I$(INST_LIB) -I$(PERL_ARCHLIB) -I$(PERL_LIB) $(TEST_FILE)
+	PERL_DL_NONLAZY=1 $(FULLPERLRUN) $(TESTDB_SW) "-I$(INST_LIB)" "-I$(INST_ARCHLIB)" $(TEST_FILE)
 
 test_ : test_dynamic
 
@@ -674,16 +720,20 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	@$(PERL) -e "print qq{<SOFTPKG NAME=\"RTF-Parser\" VERSION=\"1,07,0,0\">\n}. qq{\t<TITLE>RTF-Parser</TITLE>\n}. qq{\t<ABSTRACT></ABSTRACT>\n}. qq{\t<AUTHOR></AUTHOR>\n}. qq{\t<IMPLEMENTATION>\n}. qq{\t\t<OS NAME=\"$(OSNAME)\" />\n}. qq{\t\t<CODEBASE HREF=\"\" />\n}. qq{\t</IMPLEMENTATION>\n}. qq{</SOFTPKG>\n}" > RTF-Parser.ppd
+	@$(PERL) -e "print qq{<SOFTPKG NAME=\"$(DISTNAME)\" VERSION=\"1,08_1,0,0\">\n\t<TITLE>$(DISTNAME)</TITLE>\n\t<ABSTRACT></ABSTRACT>\n\t<AUTHOR></AUTHOR>\n}" > $(DISTNAME).ppd
+	@$(PERL) -e "print qq{\t<IMPLEMENTATION>\n\t\t<DEPENDENCY NAME=\"RTF-Tokenizer\" VERSION=\"1,01,0,0\" />\n}" >> $(DISTNAME).ppd
+	@$(PERL) -e "print qq{\t\t<OS NAME=\"$(OSNAME)\" />\n\t\t<ARCHITECTURE NAME=\"darwin\" />\n\t\t<CODEBASE HREF=\"\" />\n\t</IMPLEMENTATION>\n</SOFTPKG>\n}" >> $(DISTNAME).ppd
 
 # --- MakeMaker pm_to_blib section:
 
 pm_to_blib: $(TO_INST_PM)
-	@$(PERL) "-I$(INST_ARCHLIB)" "-I$(INST_LIB)" \
-	"-I$(PERL_ARCHLIB)" "-I$(PERL_LIB)" -MExtUtils::Install \
-        -e "pm_to_blib({qw{$(PM_TO_BLIB)}},'$(INST_LIB)/auto')"
+	@$(PERLRUNINST) "-MExtUtils::Install" \
+	-e "pm_to_blib({qw{lib/RTF/Config.pm blib/lib/RTF/Config.pm lib/RTF/HTML/ansi blib/lib/RTF/HTML/ansi lib/RTF/Charsets.pm blib/lib/RTF/Charsets.pm lib/RTF/HTML/Converter.pm blib/lib/RTF/HTML/Converter.pm}},'$(INST_LIB)/auto','$(PM_FILTER)')"
+	@$(PERLRUNINST) "-MExtUtils::Install" \
+	-e "pm_to_blib({qw{lib/RTF/TEXT/char_map blib/lib/RTF/TEXT/char_map lib/RTF/TEXT/ansi blib/lib/RTF/TEXT/ansi lib/RTF/TEXT/Converter.pm blib/lib/RTF/TEXT/Converter.pm lib/RTF/Control.pm blib/lib/RTF/Control.pm}},'$(INST_LIB)/auto','$(PM_FILTER)')"
+	@$(PERLRUNINST) "-MExtUtils::Install" \
+	-e "pm_to_blib({qw{lib/RTF/HTML/char_map blib/lib/RTF/HTML/char_map lib/RTF/Parser.pm blib/lib/RTF/Parser.pm}},'$(INST_LIB)/auto','$(PM_FILTER)')"
 	@$(TOUCH) $@
-
 
 # --- MakeMaker selfdocument section:
 

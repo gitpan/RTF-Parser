@@ -1,317 +1,649 @@
 # Sonovision-Itep, Philippe Verdret 1998-1999
-# An event-driven RTF parser
+# Perl Foundation, Peter Sergeant 2003 - ?
+
+# This is a beta release. A lot of this code is hacked to be backwards
+# compatible. You have been warned.
+
+=head1 NAME
+
+RTF::Parser
+
+=head1 DESCRIPTION
+
+An event-driven RTF Parser
+
+=head1 PUBLIC SERVICE ANNOUNCEMENT
+
+This is my first stab at upgrading RTF::Parser. I'm writing a little bit of documentation,
+and cleaning up the code a little as I go. My main intention here is to replace the core
+with RTF::Tokenizer, which should fix a few little bugs. This code is very much beta -
+please bear with me while I get the rest of the package up to scratch...
+
+=head1 GENTLE INTRODUCTION
+
+RTF::Parser has gone for over 5 years without any documentation, and its internal
+workings have confused the hell out of a lot of people, myself included.
+
+RTF::Parser is intended to be sub-classed, and, in fact, in the last release, could
+only be sub-classed by RTF::Control, included in the RTF::Parser distribution. 
+RTF::Config would then be subclassed by a module such as RTF::HTML::Converter, which
+would be invoked by a script such as C<rtf2html>...
+
+As such, RTF::Parser and RTF::Control had a fairly close relationship - RTF::Parser
+was actually calling routines in RTF::Control. This release will emulate that behaviour
+B<if> RTF::Control is loaded, which it'll check by looking for 'RTF/Control.pm' in %INC,
+otherwise you'll be able to use the interface that actually existed anyway to export
+your event-table, but, we're getting ahead of ourselves here. If for some insane reason
+you need to pretend you're using RTF::Control when you're not, or you need to pretend
+you're not using it when you are, you can use the C<rtf_control_emulation> method
+described below to do this.
+
+=head2 Subclassing RTF::Parser
+
+When you subclass RTF::Parser, you'll want to do two things. You'll firstly
+want to overwrite the methods below described as the API. This describes what
+we do when we have tokens that aren't control words (except 'symbols' - see below).
+
+Then you'll want to create a hash that maps control words to code references
+that you want executed. They'll get passed a copy of the RTF::Parser object,
+the name of the control word (say, 'b'), any arguments passed with the control
+word, and then 'start'. RTF::Control, when it gets to the end of a group, appears
+to go through all the controls it has seen to issue the same thing, except with
+'end' instead of 'start'. That'll be covered more in the RTF::Control docs though,
+because it isn't particularly relevant here.
+
+=head2 An example...
+
+The following code removes bold tags from RTF documents, and then spits back
+out RTF.
+
+  {
+  
+    # Create our subclass
+      
+      package UnboldRTF;
+
+    # We'll be doing lots of printing without newlines, so don't buffer output
+
+      $|++;
+
+    # Subclassing magic...
+    
+      use RTF::Parser;
+      @RTF2RTF::ISA = ( 'RTF::Parser' );
+                        
+    # Redefine the API nicely
+        
+      sub parse_start { print STDERR "Starting...\n"; }
+      sub group_start { print '{' }
+      sub group_end   { print '}' }
+      sub text        { print "\n" . $_[1] }
+      sub char        { print "\\\'$_[1]" }
+      sub symbol      { print "\\$_[1]" }
+      sub parse_end   { print STDERR "All done...\n"; }
+
+  }
+
+  my %do_on_control = (
+
+	# What to do when we see any control we don't have
+	#   a specific action for... In this case, we print it.
+
+    '__DEFAULT__' => sub {
+
+      my ( $self, $type, $arg ) = @_;
+      $arg = "\n" unless defined $arg;
+      print "\\$type$arg";
+
+     },
+     
+   # When we come across a bold tag, we just ignore it.
+     
+     'b' => sub {},
+
+  );
+
+  # Grab STDIN...
+
+    my $data = join '', (<>);
+
+  # Create an instance of the class we created above
+
+    my $parser = UnboldRTF->new();
+
+  # Prime the object with our control handlers...
+ 
+    $parser->control_definition( \%do_on_control );
+  
+  # Don't skip undefined destinations...
+  
+    $parser->dont_skip_destinations(1);
+
+  # Start the parsing!
+
+    $parser->parse_string( $data );
+
+=head1 METHODS
+
+=cut
 
 require 5.004;
-use strict;
 package RTF::Parser;
+use vars qw($VERSION);
 
-$RTF::Parser::VERSION = "1.07";
+use strict;
+use Carp;
+use RTF::Tokenizer 1.01;
 use RTF::Config;
-use File::Basename;
 
-use constant PARSER_TRACE => 0;
-sub backtrace { 
-  require Carp;
-  Carp::confess;			
-}
-$SIG{'INT'} = \&backtrace if PARSER_TRACE;
-$SIG{__DIE__} = \&backtrace if PARSER_TRACE;
- 
-# Parser::Generic
-sub parse_stream {
-  my $self = shift;
-  my $stream = shift;
-  my $reader = shift;		# eg: parse_stream(\*FH, \&read)
-  my $buffer = '';
+$VERSION = '1.08_1';
+my $DEBUG = 0;
 
-  unless (defined $stream) {
-    die "file not defined";
-  }
-  $self->{Filename} = '';
-  local(*F) = $stream;
-  unless (fileno F) {
-    $self->{Filename} = $stream;     # Assume $stream is a filename
-    open(F, $stream) or die "Can't open '$stream' ($!)";
-  }
-  binmode(F);
-  $self->{Filehandle} = \*F;
-  $self->{Eof} = 0;
-  $self->{Buffer} = \$buffer;
-  $self->{If_data_needed} = ref $reader eq 'SUB' ? 
-    $reader :
-      sub {			# The default reader
-	if ($buffer .= <F>) {
-	  1;
-	} else {
-	  $self->{Eof} = 1;
-	  0;
+# Debugging stuff I'm leaving in in case someone is using it..,
+	use constant PARSER_TRACE => 0;
+	
+	sub backtrace { 
+  		Carp::confess;			
 	}
-      };
-  local *if_data_needed = $self->{If_data_needed};
-				# Now parse the stream
-  $self->if_data_needed() or die "unexpected end of data";
-  $self->parse();
-  close(F) if $self->{Filename} ne '';
-  $self;
-}
-sub parse_string {
-  my $self = shift;
-  my $buffer = $_[0];
-  $self->{Filehandle} = '';
-  $self->{Filename} = '';
-  $self->{Eof} = 0;
-  $self->{If_data_needed} = sub { 0 };
-  local *if_data_needed = $self->{If_data_needed};
-  $self->{Buffer} = \$buffer;
-  $self->parse();
-  $self;
-}
+
+	$SIG{'INT'} = \&backtrace if PARSER_TRACE;
+	$SIG{__DIE__} = \&backtrace if PARSER_TRACE;
+
+
+=head2 new
+
+Creates a new RTF::Parser object. Doesn't accept any arguments.
+
+=cut
+
 sub new {
-  my $receiver = shift;		# or something like this
-  my $class = (ref $receiver or $receiver);
-  my $self = bless {
-		    Buffer => '', # internal buffer
-		    Eof => 0,	# 1 if EOF, not used
-		    EOR => '',	# end of record regex
-		    Filename => '', # filename
-		    Filehandle => '',	#
-		    Line => 0,	# not used
-		   }, $class;
-  $self;
+
+	# Get the real class name
+	my $proto = shift;
+	my $class = ref( $proto ) || $proto;
+	
+	my $self = {};
+	
+	$self->{_RTF_CONTROL_USED}++ if $INC{'RTF/Control.pm'};
+
+	$self->{_DONT_SKIP_DESTINATIONS} = 0;
+	
+	bless $self, $class;
+
+	return $self;
+
 }
 
-sub line { $_[1] ? $_[0]->{Line} = $_[1] : $_[0]->{Line} } 
-sub filename { $_[1] ? $_[0]->{Filename} = $_[1] : $_[0]->{Filename} } 
-sub buffer { $_[1] ? $_[0]->{Buffer} = $_[1] : $_[0]->{Buffer} } 
-sub eof { $_[1] ? $_[0]->{Eof} = $_[1] : $_[0]->{Eof} } 
-sub eor { $_[1] ? $_[0]->{EOR} = $_[1] : $_[0]->{EOR} } 
+# For backwards compatability, we import RTF::Control's %do_on_control
+# if we've loaded RTF::Control (which would suggest we're being subclassed
+# by RTF::Control). This isn't nice or pretty, but it doesn't break things.
+# I'd do this in new() but there's no guarentee it'll be set by then...
 
-sub error {			# not used
-  my($self, $message) = @_;
-  my $atline = $.;
-  my $infile = $self->{Filename};
+sub _install_do_on_control {
+
+	my $self = shift;
+	
+	return if $self->{_DO_ON_CONTROL};
+	
+	if ( $self->{_RTF_CONTROL_USED} ) {
+	
+		$self->{_DO_ON_CONTROL} = \%RTF::Control::do_on_control;
+	
+	} else {
+	
+		$self->{_DO_ON_CONTROL} = {};
+	
+	}
+
 }
-#################################################################################
-# interface must change if you want to write: $self->$1($1, $2);
-# $self->$control($control, $arg, 'start');
-# I'll certainly redefine this in a next release
-my $DO_ON_CONTROL = \%RTF::Control::do_on_control; # default
+
+=head2 parse_stream( \*FH )
+
+This function used to accept a second parameter - a function specifying how
+the filehandle should be read. This is deprecated, because I could find no
+examples of people using it, nor could I see why people might want to use it.
+
+Pass this function a reference to a filehandle (or, now, a filename! yay) to
+begin reading and processing.
+
+=cut
+
+sub parse_stream {
+  
+	my $self = shift;
+	my $stream = shift;
+	my $reader = shift;
+	
+	$self->_install_do_on_control();
+	
+	die("parse_stream no longer accepts a reader") if $reader;
+
+	# Put an appropriately primed RTF::Tokenizer object into our object
+	$self->{_TOKENIZER} = RTF::Tokenizer->new( file => $stream ); 
+
+	$self->_parse();
+	
+	return $self;
+
+}
+
+=head2 parse_string( $string )
+
+Pass this function a string to begin reading and processing.
+
+=cut
+
+sub parse_string {
+  
+	my $self = shift;
+	my $string = shift;
+
+	$self->_install_do_on_control();
+
+	# Put an appropriately primed RTF::Tokenizer object into our object
+	$self->{_TOKENIZER} = RTF::Tokenizer->new( string => $string ); 
+
+	$self->_parse();
+	
+	return $self;
+
+}
+
+=head2 control_definition
+
+The code that's executed when we trigger a control event is kept
+in a hash. We're holding this somewhere in our object. Earlier 
+versions would make the assumption we're being subclassed by
+RTF::Control, which isn't something I want to assume. If you are
+using RTF::Control, you don't need to worry about this, because
+we're grabbing %RTF::Control::do_on_control, and using that.
+
+Otherwise, you pass this method a reference to a hash where the keys
+are control words, and the values are coderefs that you want executed.
+This sets all the callbacks...
+
+If you don't pass it a reference, you get back the reference of the
+current control hash we're holding.
+
+=cut
+
 sub control_definition {
-  my $self = shift;
-  if (@_) {
-    if (ref $_[0]) {
-      $DO_ON_CONTROL = shift;
-    } else {
-      die "argument of control_definition() method must be an HASHREF";
-    }
-  } else {
-    $DO_ON_CONTROL;
-  }
+			
+	my $self = shift;
+
+	if (@_) {
+    
+    	if (ref $_[0] eq 'HASH') {
+    	
+      		$self->{_DO_ON_CONTROL} = shift;
+      		
+    	} else {
+
+      		die "argument of control_definition() method must be an HASHREF";
+
+ 		}
+  
+  	} else {
+    			
+    	return $self->{_DO_ON_CONTROL};
+  
+  	}
+
 }
-{ package RTF::Action;		
-  use RTF::Config;
 
-  use vars qw($AUTOLOAD);
-  my $default = $LOG_FILE ?	# or define a __DEFAULT__ action in %do_on_control
-    sub { $RTF::Control::not_processed{$_[1]}++ } : 
-      sub {};
-  my $sub;
+=head2 rtf_control_emulation
 
-  sub AUTOLOAD {
-    #my $self = $_[0];
-    #print STDERR "definition of the '$AUTOLOAD' sub\n";
+If you pass it a boolean argument, it'll set whether or not it thinks RTF::Control
+has been loaded. If you don't pass it an argument, it'll return what it thinks...
 
-    $AUTOLOAD =~ s/^.*:://;	
-    no strict 'refs';
-    if (defined ($sub = $DO_ON_CONTROL->{"$AUTOLOAD"})) {
-      # Generate on the fly a new method and call it
-      #*{"$AUTOLOAD"} = $sub; &{"$AUTOLOAD"}(@_); 
-      # in the OOP style: *{"$AUTOLOAD"} = $sub; $self->$AUTOLOAD(@_);
-      #goto &{*{"$AUTOLOAD"} = $sub}; 
-    } else {
-      #goto &{*{"$AUTOLOAD"} = $default};	
-      $sub = $default;
-    }
-    *$AUTOLOAD = $sub; 
-    goto &$sub; 
-  }
+=cut
+
+sub rtf_control_emulation {
+
+	my $self = shift;
+	my $bool = shift;
+	
+	if ( defined $bool ) {
+
+		$self->{_RTF_CONTROL_USED} = $bool;
+	
+	} else {
+	
+		return $self->{_RTF_CONTROL_USED};
+	
+	}
+
 }
-sub DESTROY {}
-#################################################################################
-				# parser's API
+
+=head2 dont_skip_destinations
+
+The RTF spec says that we skip any destinations that we don't have an explicit
+handler for. You could well not want this. Accepts a boolean argument, true
+to process destinations, 0 to skip the ones we don't understand.
+
+=cut
+
+sub dont_skip_destinations {
+
+	my $self = shift;
+	my $bool = shift;
+
+	$self->{_DONT_SKIP_DESTINATIONS} = $bool;
+
+}
+
+
+# This is how he decided to call control actions. Leaving
+#   it to do the right thing at the moment...
+
+{
+	package RTF::Action;		
+ 	use RTF::Config;
+
+	use vars qw($AUTOLOAD);
+	
+	my $default;
+	
+	# The original RTF::Parser allowed $LOGFILE to be set
+	# that made RTF::Config do fun things. We're allowing it
+	# to, but wrapping it up a bit more carefully...
+	if ( $LOG_FILE ) {
+	
+		$default = sub { $RTF::Control::not_processed{$_[1]}++ }
+	
+	}
+      		
+  	my $sub;
+
+	sub AUTOLOAD {
+    
+    	my $self = $_[0];
+    
+    	$AUTOLOAD =~ s/^.*:://;	
+    	
+    	print STDERR "$AUTOLOAD being executed\n" if $DEBUG;
+    
+    	no strict 'refs';
+    
+    	if (defined ($sub = $self->{_DO_ON_CONTROL}->{$AUTOLOAD})) {
+     
+     		# Yuck, empty if. But we're just going to leave it for a while
+     
+			} else {
+			
+				if ( $default ) {
+			
+					print STDERR "Using the default handler from RTF::Control\n" if $DEBUG;
+					$sub = $default 
+			
+				} elsif ( $self->{_DO_ON_CONTROL}->{'__DEFAULT__'} ) {
+
+					print STDERR "Using the __DEFAULT__ handler\n" if $DEBUG;
+					$sub = $self->{_DO_ON_CONTROL}->{'__DEFAULT__'};
+			
+				} else {
+			
+					print STDERR "Blank handler...\n" if $DEBUG;
+					$sub = sub {};
+			
+				}
+    
+    	}
+    	
+    	# I don't understand why he's using goto here...
+    	*$AUTOLOAD = $sub; 
+    	goto &$sub; 
+  
+  }
+
+}
+
+
+
+=head1 API
+
+These are some methods that you're going to want to over-ride if you
+subclass this modules. In general though, people seem to want to subclass
+RTF::Control, which subclasses this module.
+
+=head2 parse_start
+
+Called before we start parsing...
+
+=head2 parse_end
+
+Called when we're finished parsing
+
+=head2 group_start
+
+Called when we encounter an opening {
+
+=head2 group_end
+
+Called when we encounter a closing }
+
+=head2 text
+
+Called when we encounter plain-text. Is given the text as its
+first argument
+
+=head2 char
+
+Called when we encounter a hex-escaped character. The hex characters
+are passed as the first argument.
+
+=head2 symbol
+
+Called when we come across a control character. This is interesting, because,
+I'd have treated these as control words, so, I'm using Philippe's list as control
+words that'll trigger this for you. These are C<-_~:|{}*'\>. This needs to be
+tested.
+
+=head2 bitmap
+
+Called when we come across a command that's talking about a linked bitmap
+file. You're given the file name.
+
+=head2 binary
+
+Called when we have binary data. You get passed it.
+
+=cut
+
 sub parse_start {}
 sub parse_end {}
 sub group_start {}
 sub group_end {}
 sub text {}
 sub char {}
-sub symbol {}
-sub bitmap {}
+sub symbol {} # -_~:|{}*'\ 
+sub bitmap {} # \{bm(?:[clr]|cwd)
 sub binary {}			
 
-#################################################################################
-				# Parser
-# RTF Specification
-# The delimiter marks the end of the RTF control word, and can
-# be one of the following:
-# 1. a space. In this case, the space is part of the control word
-# 2. a digit or an hyphen, ...
-# 3. any character other than a letter or a digit
-# 
-my $CONTROL_WORD = '[a-z]{1,32}'; # or '[a-z]+';
-my $CONTROL_ARG = '(?:\d+|-\d+)'; # argument of control words, or: '-?\d+';
-my $END_OF_CONTROL = '(?:[ ]|(?=[^a-z0-9]))'; 
-my $CONTROL_SYMBOLS = q![-_~:|{}*\'\\\\]!; # Symbols (Special characters)
-my $DESTINATION = '[*]';	
-				# Another possibility: (?:[^\\\\{}]+|\\\\.)+
-				# the following accepts the null string:
-my $DESTINATION_CONTENT = '[^\\\\{}]*(?:\\\\.[^\\\\{}]*)*'; 
-my $HEXA = q![0-9abcdef][0-9abcdef]!;
-my $PLAINTEXT = '[^{}\\\\\n\r]+'; 
-my $BITMAP_START = '\\\\{bm(?:[clr]|cwd) '; # Ex.: \{bmcwd 
-my $BITMAP_END = q!\\\\}!;
-my $BITMAP_FILE = '(?:[^\\\\{}]+|\\\\[^{}])+'; 
+# This is the big, bad parse routine that isn't called directly.
+# We loop around RTF::Tokenizer, making event calls when we need to.
 
-sub parse {
-  my $self = shift;
-  my $buffer = $self->{Buffer};
-  my $guard = 0;
+	sub _parse {
 
-  unless ($self->{EOR}) {       # auto-determination
-				# or if call from parse_file() 
-				# read one line and use /\cM$/
-    $self->{EOR} = ($$buffer =~ /\cM/ ? q!\r\n! : q!\n!);
-  }
-
-  $self->parse_start();		# Action before parsing
-  while (1) {
-    $$buffer =~ s/^\\($CONTROL_WORD)($CONTROL_ARG)?$END_OF_CONTROL//o and do {
-      my ($control, $arg) = ($1, $2);
-      no strict 'refs';		
-      &{"RTF::Action::$control"}($self, $control, $arg, 'start');
-      next;
-    };
-    $$buffer =~ s/^($PLAINTEXT)//o and do {
-      $self->text($1);
-      next;
-    };
-    $$buffer =~ s/^\{\\$DESTINATION\\(($CONTROL_WORD)($CONTROL_ARG)?)$END_OF_CONTROL//o and do { 
-      # RTF Specification: "discard all text up to and including the closing brace"
-      # Example:  {\*\controlWord ... }
-      # '\*' is an escaping mechanism
-
-      if (defined $DO_ON_CONTROL->{$2}) { # if it's a registered control then don't skip
-	$$buffer = "\{\\$1" . $$buffer;
-      } else {			# skip!
-	my $level = 1;
-	my($control, $arg) = ($2, $3);
-	my $content = "\{\\*\\$1";
-	$self->{Start} = $.;		# could be used by the error() method
-	while (1) {
-	  $$buffer =~ s/^\{// and do {
-	    $content .= "\{";
-	    ++$level;
-	    next;
-	  };
-	  $$buffer =~ s/^\}// and do { # 
-	    $content .= "\}";
-	    --$level > 0 ? next : last;
-	  };
-	  $$buffer =~ s/^($DESTINATION_CONTENT)//o and do {
-	    if ($1 ne '') {
-	      $content .= $1;
-	      next;
-	    }
-	  };
-	  if ($$buffer eq '') {
-	    $self->if_data_needed() 
-	      or die "unexpected end of data: unable to find end of destination"; 
-	  } else {
-	    die "unable to analyze '$$buffer' in destination";
-	  }
-	}
-	no strict 'refs';		
-	&{"RTF::Action::*$control"}($self, '*' . "$control", $arg, $content);
-      }
-      next;
-    };
-    $$buffer =~ s/^\{(?!\\[*])// and do { # can't be a destination
-      $self->group_start();
-      next;
-    };
-    $$buffer =~ s/^\}// and do {		# 
-      $self->group_end();
-      next;
-    };
-    $$buffer =~ s/^$BITMAP_START//o and do { # bitmap filename
-      my $filename;
-      do {
-	$$buffer =~ s/^($BITMAP_FILE)//o;
-	$filename .= $1;
+		# Read in our object
+ 			my $self = shift;
+ 			
+ 		# Execute any pre-parse subroutines
+ 			$self->parse_start();
+ 			
+ 		# Loop until we find the EOF
+ 			while (1) {
+ 			
+ 				# Read in our initial token
+ 					my ( $token_type, $token_argument, $token_parameter)
+ 						= $self->{_TOKENIZER}->get_token();
+ 						
+ 				# Control words
+ 					if ( $token_type eq 'control' ) {
+ 				
+ 						# We have a special handler for control words
+ 							$self->_control( $token_argument, $token_parameter );
+ 				
+ 				# Plain text
+ 					} elsif ( $token_type eq 'text' ) {
+ 					
+ 						# Send it to the text() routine
+ 							$self->text( $token_argument );
+ 				
+ 				# Groups
+ 					} elsif ( $token_type eq 'group' ) {
+ 				
+ 						# Call the appropriate handler
+ 							$token_argument ?
+ 								$self->group_start :
+ 								$self->group_end;	
+ 				
+ 				# EOF
+ 					} else {
+ 			
+ 						last;	
+ 					
+ 					}	
 	
-	if ($$buffer eq '') {
-	  $self->if_data_needed()  or die "unexpected end of data"; 
+ 			}
+ 			
+ 		# All done
+ 			$self->parse_end();
+ 			$self;
+ 	
+	}
+	
+# Control word handler (yeuch)
+#	purl, be RTF barbie is <reply>Control words are *HARD*!
+	sub _control {
+	
+		my $self = shift;
+		my $type = shift;
+		my $arg  = shift;
+	
+		#  standard, control_symbols, hex
+		
+		# Funky destination
+			if ( $type eq '*' ) {
+	
+				# We might actually want to process it...
+				if ( $self->{_DONT_SKIP_DESTINATIONS} ) {
+
+					$self->_control_execute( '*' );
+				
+				} else {
+	
+				# Grab the next token
+ 					my ( $token_type, $token_argument, $token_parameter)
+ 						= $self->{_TOKENIZER}->get_token();
+ 				
+ 				# Basic sanity check
+ 					croak('Malformed RTF - \* not followed by a control...')
+ 						unless $token_type eq 'control';
+ 						
+ 				# Do we have a handler for it?
+					if ( defined $self->{_DO_ON_CONTROL}->{$token_argument} ) {
+						$self->_control_execute( $token_argument, $token_parameter )
+					} else {
+						$self->_skip_group();
+						$self->group_end();
+					}
+				}
+						
+		# Binary data
+			} elsif ( $type eq 'bin' ) {
+			
+				# Grab the next token
+ 					my ( $token_type, $token_argument, $token_parameter)
+ 						= $self->{_TOKENIZER}->get_token();
+ 				 
+ 				# Basic sanity check
+ 					croak('Malformed RTF - \bin not followed by text...')
+ 						unless $token_type eq 'text';
+ 						
+ 				# Send it to the handler
+ 					$self->binary( $token_argument );		
+ 		
+ 		# Implement a bitmap handler here
+ 		
+ 		# Control symbols
+ 			} elsif ( $type =~ m/[-_~:|{}*\\]/ ) {
+ 			
+ 				# Send it to the handler
+ 					$self->symbol( $type );					
+			
+		# Entity
+			} elsif ( $type eq "'" ) {
+			
+				# Entity handler
+					$self->char( $arg );
+		
+		# Some other control type - give it to the control executer
+			} else {
+			
+				# Pass it to our default executer
+					$self->_control_execute( $type, $arg )
+			
+			}
+	
+	
+	}
+	
+# Control word executer (this is nasty)
+	sub _control_execute {
+	
+		my $self = shift;
+		my $type = shift;
+		my $arg  = shift;
+	
+		no strict 'refs';		
+    	&{"RTF::Action::$type"}($self, $type, $arg, 'start');
+	
 	}
 
-      } until ($$buffer =~ s/^$BITMAP_END//o);
-      $self->bitmap($filename);
-      next;
-    };
-    $$buffer =~ s/^\\\'($HEXA)//o and do {
-      $self->char($1);	
-      next;
-    };
-    $$buffer =~ s/^\\($CONTROL_SYMBOLS)//o and do {
-      $self->symbol($1);
-      next;
-    };
-    $$buffer =~ s/^$self->{EOR}$//o;     # End of line
-    $self->if_data_needed() and next;
-    # can't goes there, except one time at EOF
-    last if $guard++ > 0;	
-  }
-				# could be in parse_end()
-  if ($$buffer ne '') {  
-    my $data = substr($$buffer, 0, 100);
-    die "unanalized data: '$data ...' at line $. file $self->{Filename}\n";  
-  }
-				# 
-  $self->parse_end();		# Action after
-  $self;
-}
-sub read {			# by line
-  my $self = $_[0];
-  my $FH = $self->{Filehandle};
-  if (${$self->{Buffer}} .= <$FH>) {
-    1;
-  } else {
-    $self->{Eof} = 1;
-    0;
-  }
-}
-use constant READ_BIN => 0;
-sub read_bin {
-  my $self = shift;
-  my $length = shift;
-  print STDERR "need to read $length chars\n" if READ_BIN;
-  my $bufref = $self->{Buffer};
-  my $fh = $self->{Filehandle};
-  my $binary = $$bufref . $self->{Strimmed};
-  my $toread = $length - length($binary);
-  print STDERR "data to read: $toread\n" if READ_BIN;
-  if ($toread > 0) {
-    my $n = CORE::read($fh, $binary, $toread, length($binary));
-    print STDERR "binary data: $n chars\n" if READ_BIN;
-    unless ($toread == $n) {
-      die "unable to read binary data\n";
-    }
-  } else {
-    $binary = substr($$bufref, 0, $length);
-    substr($$bufref, 0, $length) = '';
-  }
-  $self->binary($binary);	# and call the binary() method
-}
+# Skip a group
+	sub _skip_group {
+	
+		my $self = shift;
+	
+		my $level_counter = 1;
+		
+		while ( $level_counter ) {
+		
+			# Get a token
+				my ( $token_type, $token_argument, $token_parameter)
+ 					= $self->{_TOKENIZER}->get_token();
+		
+			# Make sure we can't loop forever
+				last if $token_type eq 'eof';
+				
+			# We're in business if it's a group
+				if ($token_type eq 'group') {
+				
+					$token_argument ?
+						$level_counter++ :
+						$level_counter-- ;
+				
+				}
+		
+		}
+	
+	}
+	
 1;
-__END__
 
+=head1 AUTHOR
 
+Peter Sergeant C<rtf.parser@clueball.com>, originally by Philippe Verdret
+
+=head1 COPYRIGHT
+
+Copyright 2003 B<Pete Sergeant>.
+
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
+
+=head1 CREDITS
+
+This work was carried out under a grant generously provided by The Perl Foundation -
+give them money!
