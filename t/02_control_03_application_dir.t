@@ -16,9 +16,7 @@ use Test::More tests => 2;
 	my $object = RTF::TEXT::Converter->new();
 	
 	my $path = $object->application_dir;
-	
-	diag("Checking in $path/");
-	
+		
 	ok( (-f $path . '/char_map' ), 'application_dir() works for RTF::TEXT::Converter' );
 
 }

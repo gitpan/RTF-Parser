@@ -24,7 +24,7 @@ Perl extension for converting RTF into text
 	use strict;
 	use RTF::TEXT::Converter;
 	
-	my $object = RTF::TEXT::Converter(
+	my $object = RTF::TEXT::Converter->new(
 	
 		output => \*STDOUT
 	
@@ -37,7 +37,7 @@ OR
 	use strict;
 	use RTF::TEXT::Converter;
 	
-	my $object = RTF::TEXT::Converter(
+	my $object = RTF::TEXT::Converter->new(
 	
 		output => \$string
 	

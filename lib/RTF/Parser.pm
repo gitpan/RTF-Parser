@@ -12,55 +12,26 @@ An event-driven RTF Parser
 
 =head1 PUBLIC SERVICE ANNOUNCEMENT
 
-This is the second developer release I've made of RTF::Parser. I took
-over RTF::Parser with the aim of documenting, refactoring, and unit-testing
-it - this is a work still in progress.
+This is the third and final (I hope) beta release of RTF::Parser before I
+release a 'production' version (hopefully around Feb 1st 04). I took over
+RTF::Parser from Phillipe Verdret, in a state where it had no documentation.
+I've been working since then on refactoring parts of it, writing tests and
+documentation, but this is still a work in progress. Please bear with me,
+ignore the gaping ommission of tests and documentation for RTF::Control,
+and send me bug reports and suggestions.
 
-There are four components of the RTF::Parser package that need reworking.
+=head1 IMPORTANT HINTS
 
-=head2 RTF/Parser.pm
+RTF parsing is non-trivial. The inner workings of these modules are somewhat
+scary. You should go and read the 'Introduction' document included with this
+distribution before going any further - it explains how this distribution fits
+together, and is B<vital> reading.
 
-This file. This file now provides a light-weight wrapper to RTF::Tokenizer.
-It is almost fully-documented, and completely refactored. The only thing
-left is the inclusion of tests
+If you just want to convert RTF to HTML or text, from inside your own script,
+jump straight to the docs for L<RTF::HTML::Converter> or L<RTF::TEXT::Converter>
+respectively.
 
-=head2 RTF/Control.pm
-
-This is the next file in my sights. A lot of the source is documented,
-and some POD documentation is provided, as are some tests. However, tests,
-refactoring, and documentation are still a long long way from being finished.
-
-=head2 RTF/HTML/Converter.pm RTF/TEXT/Converter.pm
-
-Work has yet to begin on these two modules.
-
-=head1 GENTLE INTRODUCTION
-
-RTF::Parser has gone for over 5 years without any documentation, and its internal
-workings have confused the hell out of a lot of people, myself included.
-
-RTF::Parser is intended to be sub-classed, and, in fact, in the last release, could
-only be sub-classed by RTF::Control, included in the RTF::Parser distribution. 
-RTF::Control would then be subclassed by a module such as RTF::HTML::Converter, which
-would be invoked by a script such as C<rtf2html>...
-
-As such, RTF::Parser and RTF::Control had a fairly close relationship - RTF::Parser
-was actually calling routines in RTF::Control. This release will emulate that behaviour
-B<if> RTF::Control is loaded, which it'll check by looking for 'RTF/Control.pm' in %INC,
-otherwise you'll be able to use the interface that actually existed anyway to export
-your event-table, but, we're getting ahead of ourselves here. If for some insane reason
-you need to pretend you're using RTF::Control when you're not, or you need to pretend
-you're not using it when you are, you can use the C<rtf_control_emulation> method
-described below to do this.
-
-RTF::Parser isn't a lot of use by itself - in fact, it's a lot like the RTF::Tokenizer
-module it wraps, with an extra bit of syntactic sugar - the real magic goes on in
-RTF::Control, and RTF::Control expects RTF::Parser to look a certain way. So if you're
-planning on actually using RTF::Parser for anything useful, read this document to give
-you an overview of what RTF::Parser does, and then really dive into RTF::Control's docs
-(which don't yet exist :-).
-
-=head2 Subclassing RTF::Parser
+=head1 SUBCLASSING RTF::PARSER
 
 When you subclass RTF::Parser, you'll want to do two things. You'll firstly
 want to overwrite the methods below described as the API. This describes what
@@ -69,10 +40,7 @@ we do when we have tokens that aren't control words (except 'symbols' - see belo
 Then you'll want to create a hash that maps control words to code references
 that you want executed. They'll get passed a copy of the RTF::Parser object,
 the name of the control word (say, 'b'), any arguments passed with the control
-word, and then 'start'. RTF::Control, when it gets to the end of a group, appears
-to go through all the controls it has seen to issue the same thing, except with
-'end' instead of 'start'. That'll be covered more in the RTF::Control docs though,
-because it isn't particularly relevant here.
+word, and then 'start'.
 
 =head2 An example...
 
@@ -92,7 +60,7 @@ out RTF.
     # Subclassing magic...
     
       use RTF::Parser;
-      @RTF2RTF::ISA = ( 'RTF::Parser' );
+      @UnboldRTF::ISA = ( 'RTF::Parser' );
                         
     # Redefine the API nicely
         
@@ -158,7 +126,7 @@ use Carp;
 use RTF::Tokenizer 1.01;
 use RTF::Config;
 
-$VERSION = '1.08_3';
+$VERSION = '1.08_4';
 my $DEBUG = 0;
 
 # Debugging stuff I'm leaving in in case someone is using it..,
@@ -284,8 +252,7 @@ Otherwise, you pass this method a reference to a hash where the keys
 are control words, and the values are coderefs that you want executed.
 This sets all the callbacks... The arguments passed to your coderefs
 are: $self, control word itself (like, say, 'par'), any parameter the
-control word had, and then either 'start' or 'end' to say if we've come
-across it, or it's about to go out of scope.
+control word had, and then 'start'.
 
 If you don't pass it a reference, you get back the reference of the
 current control hash we're holding.
@@ -359,7 +326,8 @@ sub dont_skip_destinations {
 
 
 # This is how he decided to call control actions. Leaving
-#   it to do the right thing at the moment...
+#   it to do the right thing at the moment... Users of the
+#	module don't need to know our dirty little secret...
 
 {
 	package RTF::Action;		
@@ -385,9 +353,7 @@ sub dont_skip_destinations {
     	my $self = $_[0];
     
     	$AUTOLOAD =~ s/^.*:://;	
-    	
-    	print STDERR "$AUTOLOAD being executed\n" if $DEBUG;
-    
+    	    
     	no strict 'refs';
     	
     	if (defined ($sub = $self->{_DO_ON_CONTROL}->{$AUTOLOAD})) {
@@ -398,17 +364,14 @@ sub dont_skip_destinations {
 			
 				if ( $default ) {
 			
-					print STDERR "Using the default handler from RTF::Control\n" if $DEBUG;
 					$sub = $default 
 			
 				} elsif ( $self->{_DO_ON_CONTROL}->{'__DEFAULT__'} ) {
 
-					print STDERR "Using the __DEFAULT__ handler\n" if $DEBUG;
 					$sub = $self->{_DO_ON_CONTROL}->{'__DEFAULT__'};
 			
 				} else {
 			
-					print STDERR "Blank handler...\n" if $DEBUG;
 					$sub = sub {};
 			
 				}
@@ -421,14 +384,6 @@ sub dont_skip_destinations {
   
   }
   
-	sub debug {
-	
-		my $function = shift();
-		
-		print STDERR "[RTF::Action::$function] " . ( join '|', @_ ) . "\n";
-	
-	}
-
 }
 
 
@@ -663,14 +618,6 @@ sub binary {}
 		}
 	
 	}
-
-sub debug {
-
-	my $function = shift;
-	
-	print STDERR "[RTF::Parser::$function]" . (join '|', @_ ) , "\n";
-
-}
 
 1;
 

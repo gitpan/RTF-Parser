@@ -28,7 +28,7 @@ Perl extension for converting RTF into HTML
 	use strict;
 	use RTF::HTML::Converter;
 	
-	my $object = RTF::HTML::Converter(
+	my $object = RTF::HTML::Converter->new(
 	
 		output => \*STDOUT
 	
@@ -41,7 +41,7 @@ OR
 	use strict;
 	use RTF::HTML::Converter;
 	
-	my $object = RTF::HTML::Converter(
+	my $object = RTF::HTML::Converter->new(
 	
 		output => \$string
 	
