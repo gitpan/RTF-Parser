@@ -3,6 +3,8 @@ use strict;
 package RTF::TEXT::Converter;
 
 use RTF::Control;
+use RTF::TEXT::Converter::ansi;
+use RTF::TEXT::Converter::charmap;
 
 @RTF::TEXT::Converter::ISA = qw(RTF::Control);
 

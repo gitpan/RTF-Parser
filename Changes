@@ -1,3 +1,7 @@
+1.8_7 Wed 17 March 2004, 15:00pm GBT
+
++ Actually fixed ansi/charmap problem actually for real :-/
+
 1.8_6 Sun 14 March 2004, 22:00pm GBT
 
 + 'ansi' and 'char_map' files put into modules, to make

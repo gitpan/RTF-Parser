@@ -15,9 +15,9 @@ Application of RTF::Parser for document conversion
 
 =head1 OVERVIEW
 
-M<RTF::Control> is a sublass of M<RTF::Parser>. M<RTF::Control> can be seen as
+L<RTF::Control> is a sublass of L<RTF::Parser>. L<RTF::Control> can be seen as
 a helper module for people wanting to write their own document convertors -
-M<RTF::HTML::Convertor> and M<RTF::TEXT::Convertor> both subclass it.
+L<RTF::HTML::Convertor> and L<RTF::TEXT::Convertor> both subclass it.
 
 I am the new maintainer of this module. My aim is to keep the interface
 identical to the old interface while cleaning up, documenting, and testing

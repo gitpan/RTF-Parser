@@ -3,6 +3,9 @@ use strict;
 package RTF::HTML::Converter;
 
 use RTF::Control;
+use RTF::HTML::Converter::ansi;
+use RTF::HTML::Converter::charmap;
+
 @RTF::HTML::Converter::ISA = qw(RTF::Control);
 
 use constant TRACE => 0;
