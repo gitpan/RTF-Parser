@@ -5,7 +5,7 @@ require 5.004;
 use strict;
 
 package RTF::Parser;
-$RTF::Parser::VERSION = "0.9";
+$RTF::Parser::VERSION = "1.00";
 use RTF::Config;
 use File::Basename;
 
@@ -41,7 +41,6 @@ sub controlDefinition {
   }
 }
 
-# Generate in the control class???
 { package Action;		
   use RTF::Config;
 
@@ -74,7 +73,7 @@ sub char {}
 sub symbol {}
 sub destination {}
 sub bitmap {}
-sub binary {}			# not call
+sub binary {}			
 sub error {			# not used
   my($self, $message) = @_;
   my $atline = $.;
@@ -242,30 +241,36 @@ sub parseFile {
   close(F);
   $self;
 }
-
-# patch from Rolf Howarth
-sub skipbin {                   # skip binary data
+use constant READ_BIN => 0;
+sub read_bin {
   my $self = shift;
   my $length = shift;
+  print STDERR "need to read $length chars\n" if READ_BIN;
   my $bufref = $self->{'buffer'};
-  while ($length > 0) {
-    if (length($$bufref) <= $length) {
-      $length -= (length($$bufref) + $self->{'trimmed'});
-      $$bufref = '';
-      $self->read();		#or die "unexpected end of file";
-    } else {
-      substr($$bufref, 0, $length) = '';
-      $length = 0;
+  my $fh = $self->{'filehandle'};
+  my $binary = $$bufref . $self->{strimmed};
+  my $toread = $length - length($binary);
+  print STDERR "data to read: $toread\n" if READ_BIN;
+  if ($toread > 0) {
+    my $n = read($fh, $binary, $toread, length($binary));
+    print STDERR "binary data: $n chars\n" if READ_BIN;
+    unless ($toread == $n) {
+      die "unable to read binary data\n";
     }
+  } else {
+    $binary = substr($$bufref, 0, $length);
+    substr($$bufref, 0, $length) = '';
+    print STDERR "data to analyze: $$bufref\n" if READ_BIN;
   }
+  $self->binary($binary);	# and call the binary() method
 }
-
 # what is the most efficient reader?
 sub read {			# by line
   my $self = $_[0];
   my $FH = $self->{'filehandle'};
   if (${$self->{'buffer'}} .= <$FH>) {
-    $self->{strimmed} = (${$self->{'buffer'}} =~ s!$EOR$!!o);
+    ${$self->{'buffer'}} =~ s!($EOR)$!!o;
+    $self->{strimmed} = $1;
     1;
   } else {
     $self->{eof} = 1;
@@ -274,3 +279,5 @@ sub read {			# by line
 }
 1;
 __END__
+
+

@@ -4,6 +4,7 @@
 # 
 # defined some interesting events for your application
 
+# application could redefine its own control callbacks if %do_on_control was exported
 use strict;
 require 5.003;
 package RTF::Control;
@@ -50,6 +51,7 @@ my $IN_TABLE = 0;
 
 my %fonttbl;
 my %stylesheet;
+my %colortbl;
 my @par = ();			# stack of paragraph properties
 my @control = ();		# stack of control instructions
 my $stylename = '';
@@ -61,6 +63,12 @@ my $styledef = '';
 				# output stack management
 my @output_stack;
 use constant MAX_OUTPUT_STACK_SIZE => 0; # 8 seems a good value
+sub dump_stack {
+  local($", $\) = ("\n") x 2;
+  my $i = @output_stack;
+  print STDERR "Stack size: $i";
+  print STDERR map { $i-- . " |$_|\n" } reverse @output_stack;
+}
 my $nul_output_sub = sub {};
 my $string_output_sub = sub { $output_stack[-1] .= $_[0]; };
 sub output { 
@@ -78,7 +86,13 @@ sub push_output {
   push @output_stack, '';
 }
 sub pop_output {  pop @output_stack; }
-
+my $flush_output_level = 2;
+sub flush_output { 
+  return unless @output_stack == $flush_output_level;
+  my $content = $output_stack[-1]; 
+  $output_stack[-1] = ''; 
+  print $content 
+}
 ###########################################################################
 				# Trace management
 use constant STYLESHEET_TRACE => 0; # If you want to see the stylesheet of the document
@@ -134,7 +148,7 @@ sub define_charset {
   eval {			# if not defined in RTF::Charsets
     %charset = %{"$_[CONTROL]"};
   };
-  warn $@ unless $@;
+  warn $@ if $@;
   $bulletItem = quotemeta($char{'periodcentered'});
 }
 sub do_on_info {		# 'info' content
@@ -267,6 +281,7 @@ use vars qw(%do_on_control);
    %symbol_ctrl,
    %toggle_ctrl,
    %destination_ctrl,
+
    'plain' => sub {
      unless (@control) {
        die "\@control stack is empty";
@@ -280,16 +295,8 @@ use vars qw(%do_on_control);
      }
    },
    'rtf' => \&discard_content,	# destination
-
-				# binary data
-   # application could define its own bin sub
-   'bin' => sub { $_[SELF]->skipbin($_[ARG]) }, # value
-
-				# Color tables
-   'colortbl' => \&discard_content,
    'info' => sub {		# {\info {...}}
      if ($_[EVENT] eq 'start') { 
-       %info = ();
        push_output('nul');
        $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
      } else {
@@ -311,7 +318,12 @@ use vars qw(%do_on_control);
    'hr' => sub { output "$_[ARG]-" }, # value
    'min' => sub { output "$_[ARG]" }, # value
 
-				# Font processing
+				# binary data
+   'bin' => sub { $_[SELF]->read_bin($_[ARG]) }, # value
+
+				# Color table - destination
+   'colortbl' => \&discard_content,
+				# Font table - destination
    'fonttbl' => sub {
      #trace "$#control $_[CONTROL] $_[ARG] $_[EVENT]";
      if ($_[EVENT] eq 'start') { 
@@ -320,6 +332,16 @@ use vars qw(%do_on_control);
        $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
      } else {
        $IN_FONTTBL = 0 ;
+       pop_output();
+     }
+   },
+				# file table - destination
+   'filetbl' => sub {
+     #trace "$#control $_[CONTROL] $_[ARG] $_[EVENT]";
+     if ($_[EVENT] eq 'start') { 
+       push_output('nul');
+       $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+     } else {
        pop_output();
      }
    },
@@ -339,7 +361,7 @@ use vars qw(%do_on_control);
 	   trace "$fontdef => $fontname" if FONTTBL_TRACE;
 	   $fonttbl{$fontdef} = $fontname;
 	 } else {
-	   warn "$fontname";
+	   warn "can't analyze $fontname";
 	 }
        }
        return;
@@ -357,10 +379,10 @@ use vars qw(%do_on_control);
 	 my $stylename = pop_output;
 	 #trace "end\n $_[CONTROL]" if STYLESHEET;
 	 if ($stylename =~ s/\s*;$//) {
-	   trace "$styledef =>$stylename<" if STYLESHEET_TRACE;
+	   trace "$styledef => $stylename" if STYLESHEET_TRACE;
 	   $stylesheet{$styledef} = $stylename;
 	 } else {
-	   warn "$stylename";
+	   warn "can't analyze $stylename";
 	 }
        }
        $styledef = '';
@@ -427,23 +449,22 @@ use vars qw(%do_on_control);
      $cstylename = $stylename;
    },
 				# a very minimal table processing
-   'cell' => sub {		# end of cell
-     use constant TABLE_TRACE => 0;
-
-     $text = pop_output;
-     if (defined (my $action = $do_on_event{'cell'})) {
-       $event = 'end';
-       trace "cell $event $text\n" if TABLE_TRACE;
-       &$action;
-     } 
- 				# prepare next
-     push_output();
-     trace "\@output_stack in table: ", @output_stack+0 if STACK_TRACE;
-   },
    'trowd' => sub {		# row start
+     use constant TABLE_TRACE => 0;
      #print STDERR "=>Beginning of ROW\n";
      unless ($IN_TABLE) {
        $IN_TABLE = 1;
+       push_output();		# table content
+       push_output();		# row  sequence
+       push_output();		# cell sequence
+       push_output();		# cell content
+     }
+   },
+   'intbl' => sub {
+     $par_props{'intbl'} = 1;
+     unless ($IN_TABLE) {
+       $IN_TABLE = 1;
+       push_output();
        push_output();
        push_output();
        push_output();
@@ -451,6 +472,7 @@ use vars qw(%do_on_control);
    },
    'row' => sub {		# row end
      $text = pop_output;
+     $text = pop_output . $text;
      if (defined (my $action = $do_on_event{'cell'})) {
        $event = 'end';
        trace "row $event $text\n" if TABLE_TRACE;
@@ -462,101 +484,96 @@ use vars qw(%do_on_control);
        trace "row $event $text\n" if TABLE_TRACE;
        &$action;
      } 
-				# prepare next row-cell
+     push_output();
      push_output();
      push_output();
    },
-   'intbl' => sub {
-     $par_props{'intbl'} = 1;
-     unless ($IN_TABLE) {
-       $IN_TABLE = 1;
-       push_output();
-       push_output();
-       push_output();
+   'cell' => sub {		# end of cell
+     trace "process cell content: $text\n" if TABLE_TRACE;
+     $text = pop_output;
+     if (defined (my $action = $do_on_event{'par'})) {
+       ($style, $event,) = ('par', 'end',);
+       &$action;
+     } else {
+       warn "$text";;
      }
+     $text = pop_output;
+     if (defined (my $action = $do_on_event{'cell'})) {
+       $event = 'end';
+       trace "cell $event $text\n" if TABLE_TRACE;
+       &$action;
+     } 
+ 				# prepare next cell
+     push_output();
+     push_output();
+     trace "\@output_stack in table: ", @output_stack+0 if STACK_TRACE;
    },
    'par' => sub {		# END OF PARAGRAPH
      use constant STYLE_TRACE => 0; # 
      #my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
      trace "($_[CONTROL], $_[ARG], $_[EVENT])" if STYLE_TRACE;
-     my $level = 2;
-
-     if ($IN_TABLE) {
-       if (not $par_props{'intbl'}) { # End of Table
-	 #print STDERR "=>End of Table\n";
-	 $IN_TABLE = 0;
-	 #$trowd = 0;
-	 my $next_text = pop_output;
-
-	 $text = pop_output;
-	 if (defined (my $action = $do_on_event{'cell'})) { # end of cell
-	   $event = 'end';
-	   trace "cell $event $text\n" if TABLE_TRACE;
-	   &$action;
-	 } 
-	 $text = pop_output;
-	 if (defined (my $action = $do_on_event{'row'})) { # end of row
-	   $event = 'end';
-	   trace "row $event $text\n" if TABLE_TRACE;
-	   &$action;
-	 } 
-	 $text = pop_output;
-	 if (defined (my $action = $do_on_event{'table'})) { # end of table
-	   $event = 'end';
-	   trace "table $event $text\n" if TABLE_TRACE;
-	   &$action;
-	 } 
-	 push_output();	# put in front of the current buffer
-	 output($next_text);
-       } else {
-	 trace "\@output_stack in table: ", @output_stack+0 if STACK_TRACE;
-	 #push_output();	
-       }
+     if ($IN_TABLE and not $par_props{'intbl'}) { # End of Table
+       $IN_TABLE = 0;
+       my $next_text = pop_output; # next paragraph content
+       
+       $text = pop_output;
+       $text = pop_output . "$text";
+       if (defined (my $action = $do_on_event{'cell'})) { # end of cell
+	 $event = 'end';
+	 trace "cell $event $text\n" if TABLE_TRACE;
+	 &$action;
+       } 
+       $text = pop_output;
+       if (defined (my $action = $do_on_event{'row'})) { # end of row
+	 $event = 'end';
+	 trace "row $event $text\n" if TABLE_TRACE;
+	 &$action;
+       } 
+       $text = pop_output;
+       if (defined (my $action = $do_on_event{'table'})) { # end of table
+	 $event = 'end';
+	 trace "table $event $text\n" if TABLE_TRACE;
+	 &$action;
+       } 
+       push_output();	       
+       trace "end of table ($next_text)\n" if TABLE_TRACE;
+       output($next_text);
+     } else {
+       trace "\@output_stack in table: ", @output_stack+0 if STACK_TRACE;
+       #push_output();	
      }
-				# Paragraph Style
-     if ($cstylename ne '') { # end of previous style
+				# paragraph style
+     if ($cstylename ne '') {	# end of previous style
        $style = $cstylename;
      } else {
        $cstylename = $style = 'par'; # no better solution
      }
        
-     if ($par_props{intbl}) {	
-       $text = pop_output;
-       push_output(); 
+     if ($par_props{intbl}) {	# paragraph in tbl
+       trace "process cell content: $text\n" if TABLE_TRACE;
        if (defined (my $action = $do_on_event{$style})) {
-	 $event = 'end';
-	 trace "cell $event $text\n" if TABLE_TRACE;
+	 ($style, $event, $text) = ($style, 'end', pop_output);
 	 &$action;
-       } 
-     } elsif ($style ne 'par' and defined (my $action = $do_on_event{$style})) {
-       ($style, $event, $text) = ($cstylename, 'end', pop_output);
-       &$action;
-       
-       if (@output_stack == $level) { 
-	 trace "\@output_stack: ", @output_stack+0 if STACK_TRACE;
-	 print pop_output;        
-	 push_output();  
+       } elsif (defined (my $action = $do_on_event{'par'})) {
+	 ($style, $event, $text) = ('par', 'end', pop_output);
+	 &$action;
+       } else {
+	 warn;
        }
        push_output(); 
-       
+     } elsif (defined (my $action = $do_on_event{$style})) {
+       ($style, $event, $text) = ($cstylename, 'end', pop_output);
+       &$action;
+       flush_output();
+       push_output(); 
      } elsif (defined (my $action = $do_on_event{'par'})) {
        ($style, $event, $text) = ('par', 'end', pop_output);
        &$action;
-       
-       if (@output_stack == $level) {
-	 trace "\@output_stack: ", @output_stack+0 if STACK_TRACE;
-	 print pop_output;  
-	 push_output(); 
-       }
+       flush_output();
        push_output(); 
-       
      } else {
        trace "no definition for '$style' in %do_on_event\n" if STYLE_TRACE;
-       
-       if (@output_stack == $level) {
-	 print pop_output;  
-	 push_output(); 
-       }
+       flush_output();
        push_output(); 
      }
      $cli = $par_props{'li'};
@@ -572,7 +589,7 @@ use vars qw(%do_on_control);
      $cstylename = '';		# ???
    },
 				# paragraph characteristics
-				# What is Type of list?
+				# What is the Type of the list items?
    'pntext' => sub {
      #my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
      #if ($_[ARG] == 0) { $cevent = 'end' }; # ???
@@ -597,7 +614,7 @@ use vars qw(%do_on_control);
    },
    #'tab' => sub { $par_props{'tab'} = 1 }, # special char
 
-   'li' => sub {		# line indent
+   'li' => sub {		# line indent - value
      use constant LI_TRACE => 0;
      my $indent = $_[ARG];
      $indent =~ s/^-//;
@@ -660,8 +677,16 @@ sub symbol {
 
 sub parseStart {
   my $self = shift;
+
+  # some initializations
+  %info = ();
+  %fonttbl = ();
+  %colortbl = ();
+  %stylesheet = ();
+
   push_output();
   push_output();
+
   if (defined (my $action = $do_on_event{'document'})) {
     $event = 'start';
     &$action;
@@ -696,7 +721,7 @@ END {
     }
     select LOG;
     my($key, $value) = ('','');
-    while (($key, $value) = each %not_processed) {
+    while (my($key, $value) = each %not_processed) {
       printf LOG "%-20s\t%3d\n", "$key", "$value";
     }
     close LOG;

@@ -134,6 +134,7 @@ my @ELT_ATT;			# HTML element attributes
        }
        #print STDERR "Normal par props: @ELT_ATT\n";
      }
+     #print STDERR "Normal-> <$style @ELT_ATT>$text</$style>\n";
      output "<$style @ELT_ATT>$text</$style>\n";
      @ELT_ATT = ();
    },
@@ -193,6 +194,7 @@ my @ELT_ATT;			# HTML element attributes
        }
        #print STDERR "par props: @ELT_ATT\n";
      }
+     #print STDERR "par-> <$style @ELT_ATT>$text</$style>\n";
      output "$N<$style @ELT_ATT>$text</$style>$N";
      @ELT_ATT = ();
    },

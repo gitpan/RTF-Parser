@@ -1,7 +1,7 @@
-		RTF Processor V 0.9 (alpha)
+		RTF Processor V 1.00 (alpha)
 
 The RTF package set is a minimal RTF processor.  This set is provided
-with an RTF to HTML converter.  This converter is just an example not
+with an RTF to HTML converter.  This converter is just an example, not
 a full-fledged application.
 
 You can try this converter on replicas.rtf
@@ -17,7 +17,7 @@ ____
 TODO
 
 - correct bugs!
-- write documentation 
+- write documentation (probably in french)
 
 __________
 Ressources
