@@ -1,3 +1,9 @@
+1.8_2 Mon 12 January 2004, 07:10pm GBT
+
++ Added RTF::Control tests and documentation
++ Added more RTF::Parser docs
++ Moved executables into their own directory
+
 1.8_1 Thu 28 August 2003, 10:00pm GBT
 
 + Rewrote all of RTF::Parser

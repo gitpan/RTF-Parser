@@ -1,5 +1,3 @@
-# Sonovision-Itep, Philippe Verdret 1998-1999
-# Perl Foundation, Peter Sergeant 2003 - ?
 
 # This is a beta release. A lot of this code is hacked to be backwards
 # compatible. You have been warned.
@@ -14,10 +12,27 @@ An event-driven RTF Parser
 
 =head1 PUBLIC SERVICE ANNOUNCEMENT
 
-This is my first stab at upgrading RTF::Parser. I'm writing a little bit of documentation,
-and cleaning up the code a little as I go. My main intention here is to replace the core
-with RTF::Tokenizer, which should fix a few little bugs. This code is very much beta -
-please bear with me while I get the rest of the package up to scratch...
+This is the second developer release I've made of RTF::Parser. I took
+over RTF::Parser with the aim of documenting, refactoring, and unit-testing
+it - this is a work still in progress.
+
+There are four components of the RTF::Parser package that need reworking.
+
+=head2 RTF/Parser.pm
+
+This file. This file now provides a light-weight wrapper to RTF::Tokenizer.
+It is almost fully-documented, and completely refactored. The only thing
+left is the inclusion of tests
+
+=head2 RTF/Control.pm
+
+This is the next file in my sights. A lot of the source is documented,
+and some POD documentation is provided, as are some tests. However, tests,
+refactoring, and documentation are still a long long way from being finished.
+
+=head2 RTF/HTML/Converter.pm RTF/TEXT/Converter.pm
+
+Work has yet to begin on these two modules.
 
 =head1 GENTLE INTRODUCTION
 
@@ -26,7 +41,7 @@ workings have confused the hell out of a lot of people, myself included.
 
 RTF::Parser is intended to be sub-classed, and, in fact, in the last release, could
 only be sub-classed by RTF::Control, included in the RTF::Parser distribution. 
-RTF::Config would then be subclassed by a module such as RTF::HTML::Converter, which
+RTF::Control would then be subclassed by a module such as RTF::HTML::Converter, which
 would be invoked by a script such as C<rtf2html>...
 
 As such, RTF::Parser and RTF::Control had a fairly close relationship - RTF::Parser
@@ -37,6 +52,13 @@ your event-table, but, we're getting ahead of ourselves here. If for some insane
 you need to pretend you're using RTF::Control when you're not, or you need to pretend
 you're not using it when you are, you can use the C<rtf_control_emulation> method
 described below to do this.
+
+RTF::Parser isn't a lot of use by itself - in fact, it's a lot like the RTF::Tokenizer
+module it wraps, with an extra bit of syntactic sugar - the real magic goes on in
+RTF::Control, and RTF::Control expects RTF::Parser to look a certain way. So if you're
+planning on actually using RTF::Parser for anything useful, read this document to give
+you an overview of what RTF::Parser does, and then really dive into RTF::Control's docs
+(which don't yet exist :-).
 
 =head2 Subclassing RTF::Parser
 
@@ -136,7 +158,7 @@ use Carp;
 use RTF::Tokenizer 1.01;
 use RTF::Config;
 
-$VERSION = '1.08_1';
+$VERSION = '1.08_2';
 my $DEBUG = 0;
 
 # Debugging stuff I'm leaving in in case someone is using it..,
@@ -260,7 +282,10 @@ we're grabbing %RTF::Control::do_on_control, and using that.
 
 Otherwise, you pass this method a reference to a hash where the keys
 are control words, and the values are coderefs that you want executed.
-This sets all the callbacks...
+This sets all the callbacks... The arguments passed to your coderefs
+are: $self, control word itself (like, say, 'par'), any parameter the
+control word had, and then either 'start' or 'end' to say if we've come
+across it, or it's about to go out of scope.
 
 If you don't pass it a reference, you get back the reference of the
 current control hash we're holding.
@@ -638,7 +663,7 @@ Peter Sergeant C<rtf.parser@clueball.com>, originally by Philippe Verdret
 
 =head1 COPYRIGHT
 
-Copyright 2003 B<Pete Sergeant>.
+Copyright 2004 B<Pete Sergeant>.
 
 This program is free software; you can redistribute it and/or modify it under
 the same terms as Perl itself.
