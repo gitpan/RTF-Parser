@@ -1,6 +1,12 @@
+1.7 mercredi, 28 juillet 1999, 12:10:54 MET DST
+
+- Corrected problem with the loading of the char_map file
+  (problem reported by matt chisholm <strthrwr@prtr-13.ucsc.edu>)
+- Added a rtf to text converter
+
 1.6 jeudi, 11 mars 1999, 14:19:56 MET
 
-- added tests
+- Added tests
 
 1.5 mercredi,  3 mars 1999, 13:37:49 MET
 - minor enhancements of RTF::Parser
@@ -12,7 +18,7 @@
 - many bugs corrected
 
 1.3 jeudi, 11 février 1999, 12:42:39 MET
-- well-formed HTML documents
+- HTML documents seems well-formed
 
 1.2 mercredi, 13 janvier 1999, 18:18:05 MET
 - Corrected bad access to the char_map file.
@@ -29,7 +35,7 @@
 - Added support for para justification processing.
 
 0.8 vendredi, 16 octobre 1998, 12:37:28 MET DST
-- Responded to problem reported by Joerg Heitkoetter
+- Responded to a problem reported by Joerg Heitkoetter
   (<joerg@de.uu.net>) thank to a patch of
   Rolf Howarth (<rolf@parallax.co.uk>)
 

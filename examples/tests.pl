@@ -1,4 +1,5 @@
 #!/usr/local/bin/perl -w
+
 require 5.000;
 use strict;
 
@@ -8,7 +9,6 @@ use File::Basename;
 use vars qw/$BASENAME $DIRNAME/;
 BEGIN {
   ($BASENAME, $DIRNAME) = fileparse($0); 
-#  unshift @INC, "/users/phv/RTF/rtfparser/rtfparser-1.03";
 }
 use lib $DIRNAME;
 
@@ -28,9 +28,9 @@ if (@ARGV)  {
   while (<DATA>) {
     s/\#.*//;
     next unless /\S/;
-    print STDERR "-" x 30, "\n";
-    print STDERR "RTF string: $_";
-    print STDERR "-" x 30, "\n";
+    print STDERR "-" x length($_), "\n";
+    print STDERR "$_";
+    print STDERR "-" x length($_), "\n";
     $self->parse_string($_);
     print $result;
     $result = '';

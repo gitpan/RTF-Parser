@@ -93,11 +93,12 @@ sub configure {
   $self;
 }
 
-# application_dir(__FILE__)
-# returns: dirname
 use constant APPLICATION_DIR => 0;
 sub application_dir {
-  my $file = $_[1];
+  my $class = ref $_[SELF];
+  my $file;
+  ($file = $class) =~ s|::|/|g;
+  $file = $INC{"$file.pm"};
   my $dirname;
   if (-f $file) {		
     $dirname = dirname $file; 
@@ -259,7 +260,7 @@ my %symbol_ctrl = map {		# install the do_on_symbol() routine
   if (/^[a-z]+$/) {
     $_ => \&do_on_symbol
   } else {
-    undef => undef;
+    'undef' => undef;
   }
 } keys %symbol;
 
@@ -393,16 +394,14 @@ my $bullet_item = 'b7'; # will be redefined in a next release!!!
 				# possible values for the control word are: ansi, mac, pc, pca
 sub define_charset {
   my $charset = $_[CONTROL];
-
   eval {			
     no strict 'refs';
     *charset = \%{"$charset"};
   };
   warn $@ if $@;
 
-  my $charset_file = $_[SELF]->application_dir(__FILE__) . "/char_map";
-  #print STDERR __FILE__, " $charset_file $application\n";
-
+  my $charset_file = $_[SELF]->application_dir() . "/char_map";
+  my $application = ref $_[SELF];
   open CHAR_MAP, "$charset_file"
     or die "unable to open the '$charset_file': $!";
 
@@ -412,7 +411,7 @@ sub define_charset {
     next unless /\S/;
     ($name, $char) = split /\s+/; 
     if (!defined($hexa = $charset{$name})) {
-      undef => undef;
+      'undef' => undef;
     } else {
       $hexa => $char;
     }
@@ -470,7 +469,14 @@ my $field_ref = '';		# identifier associated to a field
      #output('plain');
      reset_char_props();
    },
-   'rtf' => \&discard_content,	# destination
+   'rtf' => sub { # rtfN, N is version number 
+     if ($_[EVENT] eq 'start') { 
+       push_output('nul');
+       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+     } else {
+       pop_output();
+     }
+   },
    'info' => sub {		# {\info {...}}
      if ($_[EVENT] eq 'start') { 
        push_output('nul');
@@ -1001,9 +1007,8 @@ sub parse_end {
 use vars qw(%not_processed);
 END {
   if (@control) {
-    trace "Control stack not empty [size: ", @control+0, "]: ";
+    trace "END{} - Control stack not empty [size: ", @control+0, "]: ";
     foreach my $hash (@control) {
-      trace "$hash";
       while (my($key, $value) = each %$hash) {
 	trace "$key => $value";
       }
@@ -1026,4 +1031,3 @@ END {
 }
 1;
 __END__
-

@@ -5,7 +5,7 @@ require 5.004;
 use strict;
 package RTF::Parser;
 
-$RTF::Parser::VERSION = "1.06";
+$RTF::Parser::VERSION = "1.07";
 use RTF::Config;
 use File::Basename;
 
@@ -17,13 +17,6 @@ sub backtrace {
 $SIG{'INT'} = \&backtrace if PARSER_TRACE;
 $SIG{__DIE__} = \&backtrace if PARSER_TRACE;
  
-my $EOR = "\n";
-if ($OS eq 'UNIX') {
-  $EOR = q!\r?\n!;		# todo: autodetermination
-} else {
-  $EOR = q!\n!;	
-}
-
 # Parser::Generic
 sub parse_stream {
   my $self = shift;
@@ -46,10 +39,8 @@ sub parse_stream {
   $self->{Buffer} = \$buffer;
   $self->{If_data_needed} = ref $reader eq 'SUB' ? 
     $reader :
-      sub {
+      sub {			# The default reader
 	if ($buffer .= <F>) {
-	  $buffer =~ s!($EOR)$!!o;
-	  $self->{Strimmed} = $1;
 	  1;
 	} else {
 	  $self->{Eof} = 1;
@@ -76,11 +67,12 @@ sub parse_string {
   $self;
 }
 sub new {
-  my $receiver = shift;		# or somethin like This
+  my $receiver = shift;		# or something like this
   my $class = (ref $receiver or $receiver);
   my $self = bless {
 		    Buffer => '', # internal buffer
 		    Eof => 0,	# 1 if EOF, not used
+		    EOR => '',	# end of record regex
 		    Filename => '', # filename
 		    Filehandle => '',	#
 		    Line => 0,	# not used
@@ -92,6 +84,7 @@ sub line { $_[1] ? $_[0]->{Line} = $_[1] : $_[0]->{Line} }
 sub filename { $_[1] ? $_[0]->{Filename} = $_[1] : $_[0]->{Filename} } 
 sub buffer { $_[1] ? $_[0]->{Buffer} = $_[1] : $_[0]->{Buffer} } 
 sub eof { $_[1] ? $_[0]->{Eof} = $_[1] : $_[0]->{Eof} } 
+sub eor { $_[1] ? $_[0]->{EOR} = $_[1] : $_[0]->{EOR} } 
 
 sub error {			# not used
   my($self, $message) = @_;
@@ -119,12 +112,13 @@ sub control_definition {
   use RTF::Config;
 
   use vars qw($AUTOLOAD);
-  my $default = $LOG_FILE ?	# todo: define a __DEFAULT__ action in do_on_control
+  my $default = $LOG_FILE ?	# or define a __DEFAULT__ action in %do_on_control
     sub { $RTF::Control::not_processed{$_[1]}++ } : 
       sub {};
   my $sub;
+
   sub AUTOLOAD {
-    my $self = $_[0];
+    #my $self = $_[0];
     #print STDERR "definition of the '$AUTOLOAD' sub\n";
 
     $AUTOLOAD =~ s/^.*:://;	
@@ -144,7 +138,7 @@ sub control_definition {
 }
 sub DESTROY {}
 #################################################################################
-				# API
+				# parser's API
 sub parse_start {}
 sub parse_end {}
 sub group_start {}
@@ -164,8 +158,8 @@ sub binary {}
 # 2. a digit or an hyphen, ...
 # 3. any character other than a letter or a digit
 # 
-my $CONTROL_WORD = '[a-z]{1,32}'; # '[a-z]+';
-my $CONTROL_ARG = '-?\d+';	# argument of control words, or: (?:-\d+|\d+)
+my $CONTROL_WORD = '[a-z]{1,32}'; # or '[a-z]+';
+my $CONTROL_ARG = '(?:\d+|-\d+)'; # argument of control words, or: '-?\d+';
 my $END_OF_CONTROL = '(?:[ ]|(?=[^a-z0-9]))'; 
 my $CONTROL_SYMBOLS = q![-_~:|{}*\'\\\\]!; # Symbols (Special characters)
 my $DESTINATION = '[*]';	
@@ -173,7 +167,7 @@ my $DESTINATION = '[*]';
 				# the following accepts the null string:
 my $DESTINATION_CONTENT = '[^\\\\{}]*(?:\\\\.[^\\\\{}]*)*'; 
 my $HEXA = q![0-9abcdef][0-9abcdef]!;
-my $PLAINTEXT = '[^{}\\\\]+'; 
+my $PLAINTEXT = '[^{}\\\\\n\r]+'; 
 my $BITMAP_START = '\\\\{bm(?:[clr]|cwd) '; # Ex.: \{bmcwd 
 my $BITMAP_END = q!\\\\}!;
 my $BITMAP_FILE = '(?:[^\\\\{}]+|\\\\[^{}])+'; 
@@ -182,6 +176,13 @@ sub parse {
   my $self = shift;
   my $buffer = $self->{Buffer};
   my $guard = 0;
+
+  unless ($self->{EOR}) {       # auto-determination
+				# or if call from parse_file() 
+				# read one line and use /\cM$/
+    $self->{EOR} = ($$buffer =~ /\cM/ ? q!\r\n! : q!\n!);
+  }
+
   $self->parse_start();		# Action before parsing
   while (1) {
     $$buffer =~ s/^\\($CONTROL_WORD)($CONTROL_ARG)?$END_OF_CONTROL//o and do {
@@ -190,17 +191,21 @@ sub parse {
       &{"RTF::Action::$control"}($self, $control, $arg, 'start');
       next;
     };
-    $$buffer =~ s/^\{\\$DESTINATION\\($CONTROL_WORD)($CONTROL_ARG)?$END_OF_CONTROL//o and do { 
+    $$buffer =~ s/^($PLAINTEXT)//o and do {
+      $self->text($1);
+      next;
+    };
+    $$buffer =~ s/^\{\\$DESTINATION\\(($CONTROL_WORD)($CONTROL_ARG)?)$END_OF_CONTROL//o and do { 
       # RTF Specification: "discard all text up to and including the closing brace"
       # Example:  {\*\controlWord ... }
-      # '*' is an escaping mechanism
+      # '\*' is an escaping mechanism
 
-      if (defined $DO_ON_CONTROL->{$1}) { # if it's a registered control then don't skip
-	$$buffer = "\{\\$1$2" . $$buffer;
+      if (defined $DO_ON_CONTROL->{$2}) { # if it's a registered control then don't skip
+	$$buffer = "\{\\$1" . $$buffer;
       } else {			# skip!
 	my $level = 1;
-	my ($control, $arg) = ($1, $2);
-	my $content = "\{\\*\\$1$2";
+	my($control, $arg) = ($2, $3);
+	my $content = "\{\\*\\$1";
 	$self->{Start} = $.;		# could be used by the error() method
 	while (1) {
 	  $$buffer =~ s/^\{// and do {
@@ -234,17 +239,8 @@ sub parse {
       $self->group_start();
       next;
     };
-
     $$buffer =~ s/^\}// and do {		# 
       $self->group_end();
-      next;
-    };
-    $$buffer =~ s/^($PLAINTEXT)//o and do {
-      $self->text($1);
-      next;
-    };
-    $$buffer =~ s/^\\\'($HEXA)//o and do {
-      $self->char($1);	
       next;
     };
     $$buffer =~ s/^$BITMAP_START//o and do { # bitmap filename
@@ -254,37 +250,39 @@ sub parse {
 	$filename .= $1;
 	
 	if ($$buffer eq '') {
-	  $self->if_data_needed() 
-	    or die "unexpected end of data"; 
+	  $self->if_data_needed()  or die "unexpected end of data"; 
 	}
 
       } until ($$buffer =~ s/^$BITMAP_END//o);
       $self->bitmap($filename);
       next;
     };
+    $$buffer =~ s/^\\\'($HEXA)//o and do {
+      $self->char($1);	
+      next;
+    };
     $$buffer =~ s/^\\($CONTROL_SYMBOLS)//o and do {
       $self->symbol($1);
       next;
     };
+    $$buffer =~ s/^$self->{EOR}$//o;     # End of line
     $self->if_data_needed() and next;
-    # can't goes there if everything is alright, except one time at eof
+    # can't goes there, except one time at EOF
     last if $guard++ > 0;	
   }
-				# could be in parseEnd()
+				# could be in parse_end()
   if ($$buffer ne '') {  
     my $data = substr($$buffer, 0, 100);
     die "unanalized data: '$data ...' at line $. file $self->{Filename}\n";  
   }
+				# 
   $self->parse_end();		# Action after
   $self;
 }
-# what is the most efficient reader? I don't know
 sub read {			# by line
   my $self = $_[0];
   my $FH = $self->{Filehandle};
   if (${$self->{Buffer}} .= <$FH>) {
-    ${$self->{Buffer}} =~ s!($EOR)$!!o;
-    $self->{Strimmed} = $1;
     1;
   } else {
     $self->{Eof} = 1;
@@ -310,7 +308,6 @@ sub read_bin {
   } else {
     $binary = substr($$bufref, 0, $length);
     substr($$bufref, 0, $length) = '';
-    print STDERR "data to analyze: $$bufref\n" if READ_BIN;
   }
   $self->binary($binary);	# and call the binary() method
 }

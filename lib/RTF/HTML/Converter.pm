@@ -41,7 +41,12 @@ my %PAR_ALIGN = qw(
 		 qr RIGHT
 		 qj LEFT
 		);
+				# here put your style mappings
 my %STYLES = ('Normal' => 'p',
+	      'Abstract' => 'Blockquote', 
+	      'PACSCode' => 'Code',
+	      #'AuthGrp' => '', 
+	      'Section' => 'H1',
 	      'heading 1' => 'H1',
 	      'heading 2' => 'H2',
 	      'heading 3' => 'H3',
@@ -329,12 +334,12 @@ sub gen_tags {			# manage a minimal context for tag outputs
 # - method redefinition (could be the purist's solution)
 # - $Control::do_on_control{control_word} = sub {}; 
 # - when %do_on_control is exported write:
-$do_on_control{'ansi'} =	# callcack redefinition
+$do_on_control{'ansi'} =	# callback redefinition
   sub {
     # RTF: \'<hex value>
     # HTML: &#<dec value>;
     my $charset = $_[CONTROL];
-    my $charset_file = $_[SELF]->application_dir(__FILE__) . "/$charset";
+    my $charset_file = $_[SELF]->application_dir() . "/$charset";
     open CHAR_MAP, "$charset_file"
       or die "unable to open the '$charset_file': $!";
 

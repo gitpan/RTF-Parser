@@ -1,10 +1,10 @@
-#!/usr/local/bin/perl 
+#!/usr/local/bin/perl
 # Sonovision-Itep, Verdret 1995-1999
 
 require 5.004;
 use strict;
 
-my $VERSION = "1.07";
+my $VERSION = "1.03";
 
 use Getopt::Long;
 use File::Basename;
@@ -56,8 +56,8 @@ if ($opt_d) {
 
 select(STDOUT);
 
-require RTF::HTML::Converter;
-my $self = new RTF::HTML::Converter(Output => \*STDOUT);	# actually the default
+require RTF::TEXT::Converter;
+my $self = new RTF::TEXT::Converter(Output => \*STDOUT);	# actually the default
 
 foreach my $filename (@ARGV) {
   $self->parse_stream($filename);

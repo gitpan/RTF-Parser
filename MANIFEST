@@ -1,7 +1,9 @@
 Changes
 MANIFEST
+Makefile
 Makefile.PL
 README
+examples/tests.pl
 lib/RTF/Charsets.pm
 lib/RTF/Config.pm
 lib/RTF/Control.pm
@@ -9,5 +11,9 @@ lib/RTF/HTML/Converter.pm
 lib/RTF/HTML/ansi
 lib/RTF/HTML/char_map
 lib/RTF/Parser.pm
-examples/tests.pl
+lib/RTF/TEXT/Converter.pm
+lib/RTF/TEXT/ansi
+lib/RTF/TEXT/char_map
 rtf2html
+rtf2text
+t/t1.t
