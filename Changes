@@ -1,3 +1,8 @@
+1.8_3 Jan 22 January 2004, 12:55pm GBT
+
++ Added documentation for the HTML and TEXT converting
+  modules
+
 1.8_2 Mon 12 January 2004, 07:10pm GBT
 
 + Added RTF::Control tests and documentation

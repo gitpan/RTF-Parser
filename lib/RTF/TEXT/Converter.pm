@@ -9,6 +9,86 @@ use constant TRACE => 0;
 use constant LIST_TRACE => 0;
 use constant SHOW_RTF_LINE_NUMBER => 0;
 
+
+
+=head1 NAME
+
+RTF::TEXT::Converter - Perl extension for converting RTF into text
+
+=head1 DESCRIPTION
+
+Perl extension for converting RTF into text
+
+=head1 SYNOPSIS
+
+	use strict;
+	use RTF::TEXT::Converter;
+	
+	my $object = RTF::TEXT::Converter(
+	
+		output => \*STDOUT
+	
+	);
+
+	$object->parse_stream( \*RTF_FILE );
+	
+OR
+
+	use strict;
+	use RTF::TEXT::Converter;
+	
+	my $object = RTF::TEXT::Converter(
+	
+		output => \$string
+	
+	);
+
+	$object->parse_string( $rtf_data );
+
+=head1 METHODS
+
+=head2 new()
+
+Constructor method. Currently takes one named parameter, C<output>,
+which can either be a reference to a filehandle, or a reference to
+a string. This is where our text output will end up.
+
+=head2 parse_stream()
+
+Read RTF in from a filehandle, and start processing it. Pass me
+a reference to a filehandle.
+
+=head2 parse_string()
+
+Read RTF in from a string, and start processing it. Pass me a string.
+
+=head1 JUST SO YOU KNOW
+
+You can mix-and-match your output and input methods - nothing to stop
+you outputting to a string when you've read from a filehandle...
+
+=head1 AUTHOR
+
+Peter Sergeant C<rtf.parser@clueball.com>, originally by Philippe Verdret
+
+=head1 COPYRIGHT
+
+Copyright 2004 B<Pete Sergeant>.
+
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
+
+=head1 CREDITS
+
+This work was carried out under a grant generously provided by The Perl Foundation -
+give them money!
+
+
+=cut
+
+
+
+
 # Symbol exported by the RTF::Ouptut module:
 # %info: informations of the {\info ...}
 # %par_props: paragraph properties

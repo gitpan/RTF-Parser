@@ -11,6 +11,87 @@ use constant SHOW_STYLE_NOT_PROCESSED => 1;
 use constant SHOW_STYLE => 0;	# insert style name in the output
 use constant SHOW_RTF_LINE_NUMBER => 0;
 
+use constant RTF_DEBUG => 0;
+
+
+
+=head1 NAME
+
+RTF::HTML::Converter - Perl extension for converting RTF into HTML
+
+=head1 DESCRIPTION
+
+Perl extension for converting RTF into HTML
+
+=head1 SYNOPSIS
+
+	use strict;
+	use RTF::HTML::Converter;
+	
+	my $object = RTF::HTML::Converter(
+	
+		output => \*STDOUT
+	
+	);
+
+	$object->parse_stream( \*RTF_FILE );
+	
+OR
+
+	use strict;
+	use RTF::HTML::Converter;
+	
+	my $object = RTF::HTML::Converter(
+	
+		output => \$string
+	
+	);
+
+	$object->parse_string( $rtf_data );
+
+=head1 METHODS
+
+=head2 new()
+
+Constructor method. Currently takes one named parameter, C<output>,
+which can either be a reference to a filehandle, or a reference to
+a string. This is where our HTML will end up.
+
+=head2 parse_stream()
+
+Read RTF in from a filehandle, and start processing it. Pass me
+a reference to a filehandle.
+
+=head2 parse_string()
+
+Read RTF in from a string, and start processing it. Pass me a string.
+
+=head1 JUST SO YOU KNOW
+
+You can mix-and-match your output and input methods - nothing to stop
+you outputting to a string when you've read from a filehandle...
+
+=head1 AUTHOR
+
+Peter Sergeant C<rtf.parser@clueball.com>, originally by Philippe Verdret
+
+=head1 COPYRIGHT
+
+Copyright 2004 B<Pete Sergeant>.
+
+This program is free software; you can redistribute it and/or modify it under
+the same terms as Perl itself.
+
+=head1 CREDITS
+
+This work was carried out under a grant generously provided by The Perl Foundation -
+give them money!
+
+
+=cut
+
+
+
 # Symbol exported by the RTF::Ouptut module:
 # %info: informations of the {\info ...}
 # %par_props: paragraph properties
@@ -292,6 +373,9 @@ use constant GEN_TAGS_WARNS => 1;
 my @element_stack = ();		
 my %open_element = ();
 sub gen_tags {			# manage a minimal context for tag outputs
+
+	debug( 'gen_tags', @_ ) if RTF_DEBUG > 5;
+
   die "bad argument number"  unless (@_ >= 2);
   my ($eve, $tag, $att)  = @_;
 
@@ -369,7 +453,11 @@ $symbol{'tab'} = ' '; #'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
 $symbol{'ldblquote'} = '&laquo;';
 $symbol{'rdblquote'} = '&raquo;';
 $symbol{'line'} = '<br>';
-sub symbol {			
+sub symbol {	
+
+		debug( 'symbol', @_ ) if RTF_DEBUG > 5;
+
+		
   my $char_props;
   if ($START_NEW_PARA) {	
     $char_props = $_[SELF]->force_char_props('start');
@@ -386,6 +474,10 @@ sub symbol {
 				# Text
 				# certainly do the same thing with the char() method
 sub text {			# parser callback redefinition
+
+	debug( 'text', @_ ) if RTF_DEBUG > 5;
+
+
   my $text = $_[1];
   my $char_props = '';
   if ($START_NEW_PARA) {	
@@ -402,6 +494,14 @@ sub text {			# parser callback redefinition
   } else {
     output("$text");
   }
+}
+
+sub debug {
+
+	my $function = shift;
+	
+	print STDERR "[RTF::HTML::Converter::$function]" . (join '|', @_ ) , "\n";
+
 }
 
 1;

@@ -4,7 +4,7 @@
 
 =head1 NAME
 
-RTF::Parser
+RTF::Parser - An event-driven RTF Parser
 
 =head1 DESCRIPTION
 
@@ -158,7 +158,7 @@ use Carp;
 use RTF::Tokenizer 1.01;
 use RTF::Config;
 
-$VERSION = '1.08_2';
+$VERSION = '1.08_3';
 my $DEBUG = 0;
 
 # Debugging stuff I'm leaving in in case someone is using it..,
@@ -231,7 +231,7 @@ begin reading and processing.
 =cut
 
 sub parse_stream {
-  
+
 	my $self = shift;
 	my $stream = shift;
 	my $reader = shift;
@@ -256,7 +256,7 @@ Pass this function a string to begin reading and processing.
 =cut
 
 sub parse_string {
-  
+ 
 	my $self = shift;
 	my $string = shift;
 
@@ -293,7 +293,7 @@ current control hash we're holding.
 =cut
 
 sub control_definition {
-			
+
 	my $self = shift;
 
 	if (@_) {
@@ -389,7 +389,7 @@ sub dont_skip_destinations {
     	print STDERR "$AUTOLOAD being executed\n" if $DEBUG;
     
     	no strict 'refs';
-    
+    	
     	if (defined ($sub = $self->{_DO_ON_CONTROL}->{$AUTOLOAD})) {
      
      		# Yuck, empty if. But we're just going to leave it for a while
@@ -420,6 +420,14 @@ sub dont_skip_destinations {
     	goto &$sub; 
   
   }
+  
+	sub debug {
+	
+		my $function = shift();
+		
+		print STDERR "[RTF::Action::$function] " . ( join '|', @_ ) . "\n";
+	
+	}
 
 }
 
@@ -489,7 +497,7 @@ sub binary {}
 # We loop around RTF::Tokenizer, making event calls when we need to.
 
 	sub _parse {
-
+	
 		# Read in our object
  			my $self = shift;
  			
@@ -617,6 +625,7 @@ sub binary {}
 # Control word executer (this is nasty)
 	sub _control_execute {
 	
+	
 		my $self = shift;
 		my $type = shift;
 		my $arg  = shift;
@@ -654,7 +663,15 @@ sub binary {}
 		}
 	
 	}
+
+sub debug {
+
+	my $function = shift;
 	
+	print STDERR "[RTF::Parser::$function]" . (join '|', @_ ) , "\n";
+
+}
+
 1;
 
 =head1 AUTHOR
