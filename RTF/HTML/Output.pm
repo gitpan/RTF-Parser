@@ -76,7 +76,8 @@ my %OL_TYPES = (
 		'pnucrm' =>  'I', # Uppercase roman numbering
 		'pnlcrm' =>  'i', # Lowercase roman numbering
 	       );
-
+my $in_Field = -1;			# nested links are illegal, not used
+my $in_Bookmark = -1;			# nested links are illegal, not used
 %do_on_event = 
   (
    'document' => sub {		# Special action
@@ -252,6 +253,52 @@ my %OL_TYPES = (
      }
    },
   );
+
+###############################################################################
+# Could be used in a next release
+# manage a minimal context for the tag generation
+# gen_tags(EVENT, TAG_NAME, [ATTLIST])
+#          EVENT: open|close
+# return: a tag start|end
+my %cant_nest = map { $_ => 1 } qw(a);
+use constant GEN_TAGS_WARNS => 1;
+my @element_stack = ();		
+my %open_element = ();
+sub gen_tags {			# manage a minimal context for tag outputs
+  die "bad argument number"  unless (@_ >= 2);
+  my ($eve, $tag, $att)  = @_;
+
+  my $result = '';
+  if ($eve eq 'open') {
+    push @element_stack, $tag; # add a new node
+    if ($open_element{$tag}++ and defined $cant_nest{$tag}) {
+      #print STDERR "skip open $tag\n";
+      $result = '';
+    } else {
+      $result = '<'. $tag . '>' . $N;
+    }
+  } else {			# close
+    unless (@element_stack) {
+      warn "no element to close on the '$tag' tag\n" if GEN_TAGS_WARNS;
+      return $result;
+    }
+    my $opened_elt;
+    while (1) {
+      $opened_elt = pop @element_stack;
+      if (--$open_element{$tag} >= 1 and defined $cant_nest{$tag}) {
+	#print STDERR "skip close $opened_elt\n";
+      } else {
+	$result .= '</' . $opened_elt . '>' . $N;
+      }
+      last if $tag eq $opened_elt;
+      unless (@element_stack) {
+	warn "element stack is empty on $tag close\n" if GEN_TAGS_WARNS;
+	return $result;
+      }
+    }
+  }
+  $result;
+}
 ###############################################################################
 # If you have an &<entity>; in your RTF document and if
 # <entity> is a character entity, you'll see "&<entity>;" in the RTF document

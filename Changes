@@ -1,3 +1,8 @@
+1.5 mercredi,  3 mars 1999, 13:37:49 MET
+- minor enhancements of RTF::Parser
+- More coherent method naming 
+  (e.g. groupStart() is now named group_start())
+
 1.4 vendredi, 26 février 1999, 13:20:02 MET
 - Added minimal support for numbered lists
 - many bugs corrected
@@ -6,7 +11,7 @@
 - well-formed HTML documents
 
 1.2 mercredi, 13 janvier 1999, 18:18:05 MET
-- corrected bad access to the char_map file.
+- Corrected bad access to the char_map file.
 
 1.1 vendredi, 18 décembre 1998, 15:09:28 MET
 - Better char processing. 

@@ -64,7 +64,7 @@ require RTF::HTML::Output;
 my $self = new RTF::HTML::Output;	
 
 foreach my $filename (@ARGV) {
-  $self->parseStream($filename);
+  $self->parse_stream($filename);
 }
 
 1;

@@ -7,7 +7,8 @@
 
 # todo:
 # - output well-formed HTML
-# - list processing
+# - better list processing
+# - process fields and bookmarks
 
 use strict;
 require 5.003;
@@ -95,11 +96,9 @@ sub push_output {
 }
 sub pop_output {  pop @output_stack; }
 
-# ??? trace the stack size
-# you need to flush all the @output_stack!!!
-#my $flush_output_level = 2;
-sub flush_output { 
-  #return unless @output_stack == $flush_output_level;
+#my $flush_top_output_level = 2;
+sub flush_top_output { 
+  #return unless @output_stack == $flush_top_output_level;
   my $content = $output_stack[TOP]; 
 #  if (@output_stack > 1) {
 #    warn "content:->@output_stack<-\n"; 
@@ -406,6 +405,7 @@ my %value_ctrl =
   );
 
 my %pn = ();			# paragraph numbering 
+my $field_ref = '';		# identifier associated to a field
 #trace "define callback for $_[CONTROL]";
 %do_on_control = 
   (
@@ -704,17 +704,17 @@ my %pn = ();			# paragraph numbering
      } elsif (defined (my $action = $do_on_event{$style})) {
        ($style, $event, $text) = ($style, 'end', pop_output);
        &$action;
-       flush_output();
+       flush_top_output();
        push_output(); 
      } elsif (defined (my $action = $do_on_event{'par'})) {
        #($style, $event, $text) = ('par', 'end', pop_output);
        ($style, $event, $text) = ($style, 'end', pop_output);
        &$action;
-       flush_output();
+       flush_top_output();
        push_output(); 
      } else {
        trace "no definition for '$style' in %do_on_event\n" if STYLE_TRACE;
-       flush_output();
+       flush_top_output();
        push_output(); 
      }
 				# redefine this!!!
@@ -733,37 +733,68 @@ my %pn = ();			# paragraph numbering
        $par_props{$_} = '';
      }
    },
+				# ####################
 				# Fields and Bookmarks
-#   'field' => sub {  		# for a future version
-#     return;
-#     if ($_[EVENT] eq 'start') {
-#       push_output();
-#       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
-#     } else {
-#       #trace "$_[CONTROL] content: ", pop_output();
-#       pop_output();
-#     }
-#   },
-#   'fldrslt' => sub {
-#     return;
-#     if ($_[EVENT] eq 'start') {
-#       push_output();
-#       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
-#     } else {
-#       #trace "$_[CONTROL] content: ", pop_output();
-#       pop_output();
-#     }
-#   },
-#   'fldinst' => sub {		# Destination
-#     #return;
-#     if ($_[EVENT] eq 'start') {
-#       push_output();
-#       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
-#     } else {
-#       trace "$_[CONTROL] content: ", pop_output();
-#     }
+#    'field' => sub {  		# for a future version
+#      use constant FIELD_TRACE => 0;
+#      if ($_[EVENT] eq 'start') {
+#        push_output();
+#        $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+#        $field_ref = '';
+#      } else {
+#        #trace "$_[CONTROL] content: ", pop_output();
+#        if (defined (my $action = $do_on_event{'field'})) {
+# 	 ($style, $event, $text) = ($style, 'end', pop_output);
+# 	 &$action($field_ref);
+#        } 
+#      }
 #   },
 
+   # don't uncomment!!!
+#   'fldrslt' => sub { 
+#     return;
+#     if ($_[EVENT] eq 'start') {
+#       push_output();
+#       $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+#     } else {
+#       #trace "$_[CONTROL] content: ", pop_output();
+#       pop_output();
+#     }
+#   },
+   # uncomment!!!
+   # eg: {\*\fldinst {\i0  REF version \\* MERGEFORMAT }}
+#   '*fldinst' => sub {		# Destination
+#     my $string = $_[EVENT];
+#     trace "$_[CONTROL] content: $string" if FIELD_TRACE;
+#     $string =~ /\b(REF|PAGEREF)\s+(_\w\w\w\d+)/i;
+#     $field_ref = $2;
+#     # PerlBug???; $_[CONTROL] == $1 - very strange
+#     trace "$_[CONTROL] content: $string -> $2" if FIELD_TRACE;
+#     trace "$_[1] content: $string -> $2" if FIELD_TRACE;
+#     if (defined (my $action = $do_on_event{'field'})) {
+#       ($style, $event, $text) = ($style, 'start', '');
+#       &$action($field_ref);
+#     } 
+#   },
+#				# Bookmarks
+#   '*bkmkstart' => sub {		# destination
+#     my $string = $_[EVENT];
+#     if (defined (my $action = $do_on_event{'bookmark'})) {
+#       $string =~ /(_\w\w\w\d+)/;	# !!!
+#       trace "$_[CONTROL] content: $string -> $1" if TRACE;
+#       ($style, $event, $text) = ($style, 'start', $1);
+#       &$action;
+#     } 
+#   },
+#   '*bkmkend' => sub {		# destination
+#     my $string = $_[EVENT];
+#     if (defined (my $action = $do_on_event{'bookmark'})) {
+#       $string =~ /(_\w\w\w\d+)/;	# !!!
+#       ($style, $event, $text) = ($style, 'end', $1);
+#       &$action;
+#     }
+#   },
+				# ###########################
    'pn' => sub {  		# Turn on PARAGRAPH NUMBERING
      #trace "($_[CONTROL], $_[ARG], $_[EVENT])" if TRACE;
      if ($_[EVENT] eq 'start') {
@@ -841,17 +872,8 @@ my %pn = ();			# paragraph numbering
 
 				# Callback methods
 				# 
-use constant DESTINATION_TRACE => 0;
-sub destination {
-  #my $self = shift;
-  return unless DESTINATION_TRACE;
-  my $destination = shift; 
-  $destination =~ s/({\\[*]...).*(...})/$1 ... $2/ or die "invalid destination";
-  trace "skipped destination: $destination" if DESTINATION_TRACE;
-}
-
 use constant GROUP_START_TRACE => 0;
-sub groupStart {		# on {
+sub group_start {		# on {
   my $self = shift;
   trace "" if GROUP_START_TRACE;
   push @par_props_stack, { %par_props };
@@ -859,7 +881,7 @@ sub groupStart {		# on {
   push @control, {};		# hash of controls
 }
 use constant GROUP_END_TRACE => 0;
-sub groupEnd {			# on }
+sub group_end {			# on }
 				# par properties
   %par_props = %{ pop @par_props_stack };
   $cstylename = $par_props{'stylename'}; # the current style 
@@ -899,7 +921,7 @@ sub symbol {			# symbols: \ - _ ~ : | { } * \'
   }
 }
 use constant PARSE_START_END => 0;
-sub parseStart {
+sub parse_start {
   my $self = shift;
 
   # some initializations
@@ -913,10 +935,10 @@ sub parseStart {
     $event = 'start';
     &$action;
   }
-  #push_output();
-  flush_output();	
+  flush_top_output();	
+  push_output();
 }
-sub parseEnd {
+sub parse_end {
   my $self = shift;
   my $action = '';
   trace "parseEnd \@output_stack: ", @output_stack+0 if STACK_TRACE;

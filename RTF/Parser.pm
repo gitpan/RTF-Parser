@@ -5,7 +5,7 @@ require 5.004;
 use strict;
 package RTF::Parser;
 
-$RTF::Parser::VERSION = "1.04";
+$RTF::Parser::VERSION = "1.05";
 use RTF::Config;
 use File::Basename;
 
@@ -17,74 +17,91 @@ sub backtrace {
 $SIG{'INT'} = \&backtrace if PARSER_TRACE;
 $SIG{__DIE__} = \&backtrace if PARSER_TRACE;
  
-# Parser::Generic
-sub parseStream {
-  my $self = shift;
-  my $stream = shift;
-  unless (defined $stream) {
-    die "file not defined";
-  }
-  $self->{filename} = '';
-  local(*F) = $stream;
-  unless (fileno F) {
-    $self->{filename} = $stream;     # Assume $stream is a filename
-    open(F, $stream) or die "Can't open '$stream' ($!)";
-  }
-  binmode(F); # or something like this
-  $self->{filehandle} = \*F;
-  $self->{'eof'} = 0;
-  local *if_data_needed = \&read;
-  my $buffer = '';
-  $self->{'buffer'} = \$buffer;
-				# accept empty file???
-  $self->if_data_needed() or die "unexpected end of data";
-  $self->parse();
-  close(F) if $self->{filename} ne '';
-  $self;
-}
-sub parseString {
-  my $self = shift;
-  $self->{filehandle} = $self->{filename} = '';
-  $self->{'eof'} = 0;
-  local *if_data_needed = sub { 0 };
-  my $buffer = $_[0];
-  $self->{'buffer'} = \$buffer;
-  $self->parse();
-  $self;
-}
-sub new {
-  my $receiver = shift;
-  my $class = (ref $receiver or $receiver);
-  my $self = bless {
-		    'buffer' => '', # internal buffer
-		    'eof' => 0,	# 1 if EOF, not used
-		    'filename' => '', # filename
-		    'filehandle' => '',	# filehandle to read
-		    'line' => 0, # not used
-		   }, $class;
-  $self;
-}
-
-sub line { $_[1] ? $_[0]->{line} = $_[1] : $_[0]->{line} } 
-sub filename { $_[1] ? $_[0]->{filename} = $_[1] : $_[0]->{filename} } 
-sub buffer { $_[1] ? $_[0]->{buffer} = $_[1] : $_[0]->{buffer} } 
-sub eof { $_[1] ? $_[0]->{eof} = $_[1] : $_[0]->{eof} } 
-
-sub error {			# not used
-  my($self, $message) = @_;
-  my $atline = $.;
-  my $infile = $self->{filename};
-}
-#################################################################################
 my $EOR = "\n";
 if ($OS eq 'UNIX') {
   $EOR = q!\r?\n!;		# todo: autodetermination
 } else {
   $EOR = q!\n!;	
 }
-			
+
+# Parser::Generic
+sub parse_stream {
+  my $self = shift;
+  my $stream = shift;
+  my $reader = shift;		# eg: parse_stream(\*FH, \&read)
+  my $buffer = '';
+
+  unless (defined $stream) {
+    die "file not defined";
+  }
+  $self->{Filename} = '';
+  local(*F) = $stream;
+  unless (fileno F) {
+    $self->{Filename} = $stream;     # Assume $stream is a filename
+    open(F, $stream) or die "Can't open '$stream' ($!)";
+  }
+  binmode(F);
+  $self->{Filehandle} = \*F;
+  $self->{Eof} = 0;
+  $self->{Buffer} = \$buffer;
+  $self->{If_data_needed} = ref $reader eq 'SUB' ? 
+    $reader :
+      sub {
+	if ($buffer .= <F>) {
+	  $buffer =~ s!($EOR)$!!o;
+	  $self->{Strimmed} = $1;
+	  1;
+	} else {
+	  $self->{Eof} = 1;
+	  0;
+	}
+      };
+  local *if_data_needed = $self->{If_data_needed};
+				# Now parse the stream
+  $self->if_data_needed() or die "unexpected end of data";
+  $self->parse();
+  close(F) if $self->{Filename} ne '';
+  $self;
+}
+sub parse_string {
+  my $self = shift;
+  my $buffer = $_[0];
+  $self->{Filehandle} = '';
+  $self->{Filename} = '';
+  $self->{Eof} = 0;
+  $self->{If_data_needed} = sub { 0 };
+  local *if_data_needed = $self->{If_data_needed};
+  $self->{Buffer} = \$buffer;
+  $self->parse();
+  $self;
+}
+sub new {
+  my $receiver = shift;		# or somethin like This
+  my $class = (ref $receiver or $receiver);
+  my $self = bless {
+		    Buffer => '', # internal buffer
+		    Eof => 0,	# 1 if EOF, not used
+		    Filename => '', # filename
+		    Filehandle => '',	#
+		    Line => 0,	# not used
+		   }, $class;
+  $self;
+}
+
+sub line { $_[1] ? $_[0]->{Line} = $_[1] : $_[0]->{Line} } 
+sub filename { $_[1] ? $_[0]->{Filename} = $_[1] : $_[0]->{Filename} } 
+sub buffer { $_[1] ? $_[0]->{Buffer} = $_[1] : $_[0]->{Buffer} } 
+sub eof { $_[1] ? $_[0]->{Eof} = $_[1] : $_[0]->{Eof} } 
+
+sub error {			# not used
+  my($self, $message) = @_;
+  my $atline = $.;
+  my $infile = $self->{Filename};
+}
+#################################################################################
 # interface must change if you want to write: $self->$1($1, $2);
 # $self->$control($control, $arg, 'start');
+# I'll certainly redefine this in a next release
 my $DO_ON_CONTROL = \%RTF::Control::do_on_control; # default
 sub controlDefinition {
   my $self = shift;
@@ -102,36 +119,44 @@ sub controlDefinition {
   use RTF::Config;
 
   use vars qw($AUTOLOAD);
-  my $default = $LOG_FILE ? 
+  my $default = $LOG_FILE ?	# todo: define a __DEFAULT__ action in do_on_control
     sub { $RTF::Control::not_processed{$_[1]}++ } : 
       sub {};
+  my $sub;
   sub AUTOLOAD {
     my $self = $_[0];
+    #print STDERR "definition of the '$AUTOLOAD' sub\n";
+
     $AUTOLOAD =~ s/^.*:://;	
     no strict 'refs';
-    if (defined (my $sub = ${$DO_ON_CONTROL}{"$AUTOLOAD"})) {
+    if (defined ($sub = $DO_ON_CONTROL->{"$AUTOLOAD"})) {
       # Generate on the fly a new method and call it
       #*{"$AUTOLOAD"} = $sub; &{"$AUTOLOAD"}(@_); 
       # in the OOP style: *{"$AUTOLOAD"} = $sub; $self->$AUTOLOAD(@_);
-      goto &{*{"$AUTOLOAD"} = $sub}; 
+      #goto &{*{"$AUTOLOAD"} = $sub}; 
     } else {
-      goto &{*{"$AUTOLOAD"} = $default};	
+      #goto &{*{"$AUTOLOAD"} = $default};	
+      $sub = $default;
     }
+    *$AUTOLOAD = $sub; 
+    goto &$sub; 
   }
 }
 sub DESTROY {}
-			# API
-sub parseStart {}
-sub parseEnd {}
-sub groupStart {}
-sub groupEnd {}
+#################################################################################
+				# API
+sub parse_start {}
+sub parse_end {}
+sub group_start {}
+sub group_end {}
 sub text {}
 sub char {}
 sub symbol {}
-sub destination {}
 sub bitmap {}
 sub binary {}			
 
+#################################################################################
+				# Parser
 # RTF Specification
 # The delimiter marks the end of the RTF control word, and can
 # be one of the following:
@@ -143,8 +168,10 @@ my $CONTROL_WORD = '[a-z]{1,32}'; # '[a-z]+';
 my $CONTROL_ARG = '-?\d+';	# argument of control words, or: (?:-\d+|\d+)
 my $END_OF_CONTROL = '(?:[ ]|(?=[^a-z0-9]))'; 
 my $CONTROL_SYMBOLS = q![-_~:|{}*\'\\\\]!; # Symbols (Special characters)
-my $DESTINATION = '[*]';	# 
-my $DESTINATION_CONTENT = '(?:[^\\\\{}]+|\\\\.)+'; 
+my $DESTINATION = '[*]';	
+				# Another possibility: (?:[^\\\\{}]+|\\\\.)+
+				# the following accepts the null string:
+my $DESTINATION_CONTENT = '[^\\\\{}]*(?:\\\\.[^\\\\{}]*)*'; 
 my $HEXA = q![0-9abcdef][0-9abcdef]!;
 my $PLAINTEXT = '[^{}\\\\]+'; 
 my $BITMAP_START = '\\\\{bm(?:[clr]|cwd) '; # Ex.: \{bmcwd 
@@ -153,115 +180,114 @@ my $BITMAP_FILE = '(?:[^\\\\{}]+|\\\\[^{}])+';
 
 sub parse {
   my $self = shift;
-  my $buffer = ${$self->{'buffer'}};
-  $self->{'buffer'} = \$buffer;
+  my $buffer = $self->{Buffer};
   my $guard = 0;
-  $self->parseStart();		# Action before parsing
+  $self->parse_start();		# Action before parsing
   while (1) {
-    $buffer =~ s/^\\($CONTROL_WORD)($CONTROL_ARG)?$END_OF_CONTROL//o and do {
+    $$buffer =~ s/^\\($CONTROL_WORD)($CONTROL_ARG)?$END_OF_CONTROL//o and do {
       my ($control, $arg) = ($1, $2);
       no strict 'refs';		
       &{"RTF::Action::$control"}($self, $control, $arg, 'start');
       next;
     };
-    $buffer =~ s/^\{\\$DESTINATION\\($CONTROL_WORD)($CONTROL_ARG)?$END_OF_CONTROL//o and do { 
+    $$buffer =~ s/^\{\\$DESTINATION\\($CONTROL_WORD)($CONTROL_ARG)?$END_OF_CONTROL//o and do { 
       # RTF Specification: "discard all text up to and including the closing brace"
       # Example:  {\*\controlWord ... }
       # '*' is an escaping mechanism
 
-      if (defined ${$DO_ON_CONTROL}{$1}) { # if it's a registered control then don't skip
-	$buffer = "\{\\$1$2" . $buffer;
+      if (defined $DO_ON_CONTROL->{$1}) { # if it's a registered control then don't skip
+	$$buffer = "\{\\$1$2" . $$buffer;
       } else {			# skip!
 	my $level = 1;
+	my ($control, $arg) = ($1, $2);
 	my $content = "\{\\*\\$1$2";
-	$self->{'start'} = $.;		# could be used by the error() method
+	$self->{Start} = $.;		# could be used by the error() method
 	while (1) {
-	  $buffer =~ s/^($DESTINATION_CONTENT)//o and do {
-	    $content .= $1;
-	    next
-	  };
-	  $buffer =~ s/^\{// and do {
+	  $$buffer =~ s/^\{// and do {
 	    $content .= "\{";
-	    $level++;
+	    ++$level;
 	    next;
 	  };
-	  $buffer =~ s/^\}// and do { # 
+	  $$buffer =~ s/^\}// and do { # 
 	    $content .= "\}";
-	    --$level == 0 and last;
-	    next;
+	    --$level > 0 ? next : last;
 	  };
-	  if ($buffer eq '') {
+	  $$buffer =~ s/^($DESTINATION_CONTENT)//o and do {
+	    if ($1 ne '') {
+	      $content .= $1;
+	      next;
+	    }
+	  };
+	  if ($$buffer eq '') {
 	    $self->if_data_needed() 
-	      or 
-		die "unexpected end of data: unable to find end of destination"; 
-	    next;
+	      or die "unexpected end of data: unable to find end of destination"; 
 	  } else {
-	    die "unable to analyze '$buffer' in destination"; 
+	    die "unable to analyze '$$buffer' in destination";
 	  }
 	}
-	$self->destination($content);
+	no strict 'refs';		
+	&{"RTF::Action::*$control"}($self, '*' . "$control", $arg, $content);
       }
       next;
     };
-    $buffer =~ s/^\{(?!\\[*])// and do { # can't be a destination
-      $self->groupStart();
+    $$buffer =~ s/^\{(?!\\[*])// and do { # can't be a destination
+      $self->group_start();
       next;
     };
 
-    $buffer =~ s/^\}// and do {		# 
-      $self->groupEnd();
+    $$buffer =~ s/^\}// and do {		# 
+      $self->group_end();
       next;
     };
-    $buffer =~ s/^($PLAINTEXT)//o and do {
+    $$buffer =~ s/^($PLAINTEXT)//o and do {
       $self->text($1);
       next;
     };
-    $buffer =~ s/^\\\'($HEXA)//o and do {
+    $$buffer =~ s/^\\\'($HEXA)//o and do {
       $self->char($1);	
       next;
     };
-    $buffer =~ s/^$BITMAP_START//o and do { # bitmap filename
+    $$buffer =~ s/^$BITMAP_START//o and do { # bitmap filename
       my $filename;
       do {
-	$buffer =~ s/^($BITMAP_FILE)//o;
+	$$buffer =~ s/^($BITMAP_FILE)//o;
 	$filename .= $1;
 	
-	if ($buffer eq '') {
+	if ($$buffer eq '') {
 	  $self->if_data_needed() 
-	    or 
-	      die "unexpected end of data"; 
+	    or die "unexpected end of data"; 
 	}
 
-      } until ($buffer =~ s/^$BITMAP_END//o);
+      } until ($$buffer =~ s/^$BITMAP_END//o);
       $self->bitmap($filename);
       next;
     };
-    $buffer =~ s/^\\($CONTROL_SYMBOLS)//o and do {
+    $$buffer =~ s/^\\($CONTROL_SYMBOLS)//o and do {
       $self->symbol($1);
       next;
     };
     $self->if_data_needed() and next;
-    # can't goes there if everything is alright, except one time on eof
+    # can't goes there if everything is alright, except one time at eof
     last if $guard++ > 0;	
   }
 				# could be in parseEnd()
-  if ($buffer ne '') {  
-    my $data = substr($buffer, 0, 100);
-    die "unanalized data: '$data ...' at line $. file $self->{filename}\n";  
+  if ($$buffer ne '') {  
+    my $data = substr($$buffer, 0, 100);
+    die "unanalized data: '$data ...' at line $. file $self->{Filename}\n";  
   }
-  $self->parseEnd();		# Action after
+  $self->parse_end();		# Action after
   $self;
 }
 # what is the most efficient reader? I don't know
 sub read {			# by line
   my $self = $_[0];
-  my $FH = $self->{'filehandle'};
-  if (${$self->{'buffer'}} .= <$FH>) {
-    ${$self->{'buffer'}} =~ s!($EOR)$!!o;
-    $self->{strimmed} = $1;
+  my $FH = $self->{Filehandle};
+  if (${$self->{Buffer}} .= <$FH>) {
+    ${$self->{Buffer}} =~ s!($EOR)$!!o;
+    $self->{Strimmed} = $1;
     1;
   } else {
-    $self->{eof} = 1;
+    $self->{Eof} = 1;
     0;
   }
 }
@@ -270,9 +296,9 @@ sub read_bin {
   my $self = shift;
   my $length = shift;
   print STDERR "need to read $length chars\n" if READ_BIN;
-  my $bufref = $self->{'buffer'};
-  my $fh = $self->{'filehandle'};
-  my $binary = $$bufref . $self->{strimmed};
+  my $bufref = $self->{Buffer};
+  my $fh = $self->{Filehandle};
+  my $binary = $$bufref . $self->{Strimmed};
   my $toread = $length - length($binary);
   print STDERR "data to read: $toread\n" if READ_BIN;
   if ($toread > 0) {

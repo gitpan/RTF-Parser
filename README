@@ -1,23 +1,19 @@
 
-                     RTF Processor V 1.04 - ALPHA
+                     RTF Processor V 1.05 - ALPHA
 
 
 The RTF package set is a minimal RTF processor.  This set is provided
 with an RTF to HTML converter.  This converter is just an example, not
 a full-fledged application.
 
-You can try this converter on replicas.rtf
-(<http://www.research.microsoft.com/~gray/replicas.rtf>) or on the RTF
-specification (see the "Ressources" section). 
-For example:
+You can try this converter the RTF specification (see the "Ressources"
+section).  For example:
 
 	% rtf2html RTF-Spec-1_5.rtf > RTF-Spec-1_5.htm
 
 You can manually test the current distribution with:
 
 	% perl -I. examples/tests.pl
-
-Don't hesite to send me your suggestions or extensions.
 
 Philippe Verdret
 pverdret@sonovision-itep.fr
@@ -35,6 +31,7 @@ RTF::Parser    adpO  Base class for parsing RTF files             PVERD
 ____
 TODO
 
+- define tests
 - write a documentation 
 
 __________
