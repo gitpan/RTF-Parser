@@ -7,19 +7,8 @@ use RTF::Control;
 
 use RTF::TEXT::Converter;
 
-use Test::More tests => 2;
+use Test::More tests => 1;
 
-
-
-{ 
-
-	my $object = RTF::TEXT::Converter->new();
-	
-	my $path = $object->application_dir;
-		
-	ok( (-f $path . '/char_map' ), 'application_dir() works for RTF::TEXT::Converter' );
-
-}
 
 { 
 

@@ -1,3 +1,17 @@
+package RTF::HTML::Converter::ansi;
+
+my @data = (<DATA>);
+chomp(@data);
+
+sub data {
+
+	return @data;
+
+}
+
+1;
+
+__DATA__
 00 ` 
 01 &acute;
 02 ^

@@ -116,6 +116,8 @@ my $CURRENT_LI = 0;		# current list indent
 my @LIST_STACK = ();		# stack of opened lists
 my %LI_LEVEL = ();		# li -> list level
 
+my %charmap_defaults = map({ sprintf("%02x", $_) => "&#$_;" } (0..255));
+
 my %PAR_ALIGN = qw(
 		 qc CENTER
 		 ql LEFT
@@ -422,15 +424,13 @@ $do_on_control{'ansi'} =	# callback redefinition
   sub {
     # RTF: \'<hex value>
     # HTML: &#<dec value>;
-    my $charset = $_[CONTROL];
-    my $charset_file = $_[SELF]->application_dir() . "/$charset";
-    open CHAR_MAP, "$charset_file"
-      or die "unable to open the '$charset_file': $!";
+    
+    my @charmap_data = $_[SELF]->charmap_reader( $_[CONTROL] );
 
     my %charset = (		# general rule
-		   map({ sprintf("%02x", $_) => "&#$_;" } (0..255)),
+		   %charmap_defaults,
 				# and some specific defs
-		   map({ s/^\s+//; split /\s+/ } (<CHAR_MAP>))
+		   map({ s/^\s+//; split /\s+/ } @charmap_data)
 		  );
     *char = sub { 
       my $char_props;
@@ -443,6 +443,7 @@ $do_on_control{'ansi'} =	# callback redefinition
       output $char_props . $charset{$_[1]}
     } 
   };
+
 
 				# symbol processing
 				# RTF: \~

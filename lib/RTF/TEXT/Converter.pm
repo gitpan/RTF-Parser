@@ -3,6 +3,7 @@ use strict;
 package RTF::TEXT::Converter;
 
 use RTF::Control;
+
 @RTF::TEXT::Converter::ISA = qw(RTF::Control);
 
 use constant TRACE => 0;
@@ -103,6 +104,8 @@ give them money!
 ###########################################################################
 my $N = "\n"; # Pretty-printing
 
+my %charmap_defaults = map({ sprintf("%02x", $_) => chr($_) } (0..255));
+
 				# you can split on sentences here if you want!!!
 				# some output parameters
 %do_on_event = 
@@ -131,7 +134,7 @@ my $N = "\n"; # Pretty-printing
    },
    'par' => sub {		# Default rule: if no entry for a paragraph style
 				# Paragraph styles
-     return output($text) unless $text =~ /\S/;
+     #return output($text) unless $text =~ /\S/;
      output "$text$N";
    },
   );
@@ -144,34 +147,57 @@ my $N = "\n"; # Pretty-printing
 # - method redefinition (could be the purist's solution)
 # - $Control::do_on_control{control_word} = sub {}; 
 # - when %do_on_control is exported write:
+
+
+# OK, so a little rewrite has gone on here. I don't like opening 'ansi'
+# and 'char_map' files, so I've wrapped them in RTF::TEXT::ansi.pm, and
+# so on. This makes it an awful lot cleaner, but falls back as
+# appropriate
+
+
 $do_on_control{'ansi'} =	# callcack redefinition
   sub {
-    # RTF: \'<hex value>
-    # HTML: &#<dec value>;
-    my $charset = $_[CONTROL];
-    my $charset_file = $_[SELF]->application_dir(__FILE__) . "/$charset";
-    open CHAR_MAP, "$charset_file"
-      or die "unable to open the '$charset_file': $!";
 
-    my %charset = (		# general rule
-		   map({ sprintf("%02x", $_) => "&#$_;" } (0..255)),
-				# and some specific defs
-		   map({ s/^\s+//; split /\s+/ } (<CHAR_MAP>))
-		  );
-    *char = sub { 
-      output $charset{$_[1]}
-    } 
-  };
+    my @charmap_data = $_[SELF]->charmap_reader( $_[CONTROL] );
+
+    # Create the charset hash...
+		my %charset = (
+
+		# Defaults...
+			%charmap_defaults,
+		
+		# Specifics from our charset file...
+			map({ s/^\s+//; split /\s+/ } @charmap_data )
+
+		);
+
+	# Over-ride &char to return our character mapping
+		local($^W);
+		*char = sub { 
+			output $charset{$_[1]}
+		} 
+ 
+ };
 
 				# symbol processing
 				# RTF: \~
 				# named chars
 				# RTF: \ldblquote, \rdblquote
-$symbol{'~'} = '&nbsp;';
-$symbol{'tab'} = ' ';
+$symbol{'~'} = ' ';
+$symbol{'tab'} = "\t";
 $symbol{'ldblquote'} = '"';
 $symbol{'rdblquote'} = '"';
 $symbol{'line'} = "\n";
+$symbol{'_'} = '-';
+
+# If we get called from a non-ansi document, then we've not redefined
+# char() to something sensible, so we put a nice definition here...
+sub char {
+
+	output $charmap_defaults{ $_[1] }
+
+}
+
 sub symbol {			
   if (defined(my $sym = $symbol{$_[1]}))  {
     output $sym;

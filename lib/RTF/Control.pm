@@ -15,9 +15,9 @@ Application of RTF::Parser for document conversion
 
 =head1 OVERVIEW
 
-RTF::Control is a sublass of RTF::Parser. RTF::Control can be seen as
+M<RTF::Control> is a sublass of M<RTF::Parser>. M<RTF::Control> can be seen as
 a helper module for people wanting to write their own document convertors -
-RTF::HTML::Convertor and RTF::TEXT::Convertor both subclass it.
+M<RTF::HTML::Convertor> and M<RTF::TEXT::Convertor> both subclass it.
 
 I am the new maintainer of this module. My aim is to keep the interface
 identical to the old interface while cleaning up, documenting, and testing
@@ -25,7 +25,10 @@ the internals. There are things in the interface I'm unhappy with, and things
 I like - however, I'm maintaining rather than developing the module, so, the
 interface is mostly frozen.
 
-=head1 API
+=head1 HOW IT ALL WORKS
+
+For starters, go and look at the source of M<RTF::TEXT::Convertor>
+
 
 Except for B<RTF::Parser subs>, the following is a list of variables
 exported by RTF::Control that you're expected to tinker with in your
@@ -260,6 +263,58 @@ sub application_dir {
 			
 }
 
+=head2 charmap_reader
+
+This nicely abstracts away using application_dir and so on. It's a method
+call. It'll take the name of the class, and an argument for the module/file
+it's looking for. This is likely to be 'ansi' or 'charmap'. This argument,
+for historical reasons (ho ho ho) will have any _'s removed in the check for
+a module name ... C< $self->charmap_reader('char_map') > will thus look for, for
+example, C< RTF::TEXT::charmap > to load. It'll return the data in the file as
+an array of lines. This description sucks.
+
+=cut
+
+sub charmap_reader {
+
+	my $self = shift;
+	my $file = shift;
+	
+	my @char_map_data;
+
+	# Try and work out what our character set module would be called...
+		my $module_file = $file;
+		$module_file =~ s/_//g;
+		my $module_name = ref( $self ) . '::' . $module_file;
+	
+	# Can we load it?
+		eval "use $module_name";
+
+	# That would be a no...
+		if ($@) {
+			
+		# Create a path for the charset file using the old method...
+			my $charset_file = $_[SELF]->application_dir(__FILE__) . "/$file";
+			
+		# Try and open it...
+			open( CHAR_MAP, "< $charset_file" ) or die
+				"Unable to open the charset file '$charset_file': $!";
+		
+		# Read in the data...
+			@char_map_data = (<CHAR_MAP>);
+	
+	# Why yes, yes we can...
+		} else {
+		
+			my $sub_name = $module_name . '::' . 'data';
+			@char_map_data = main->$sub_name();
+		
+		}
+		
+	return @char_map_data;
+
+}
+
 ###########################################################################
 
 # This stuff is all to do with the stack, and I'm not really sure how it
@@ -316,12 +371,12 @@ sub output {
 #	start with the string_output_sub being what &output does tho.
 
 my $nul_output_sub = sub {
-	
+	#print STDERR "** $_[0] **\n";
 };
 
 my $string_output_sub = sub {
 
-	$output_stack[TOP] .= $_[0]
+	$output_stack[TOP] .= $_[0] if $_[0];
 	
 };
 
@@ -863,11 +918,7 @@ sub define_charset {
   
 	warn $@ if $@;
 
-	my $charset_file = $_[SELF]->application_dir() . "/char_map";
-	my $application = ref $_[SELF];
-	
-	open CHAR_MAP, "$charset_file"
-		or die "unable to open the '$charset_file': $!";
+	my @charset_data = $_[SELF]->charmap_reader('char_map');
 
 	my ($name, $char, $hexa);
 	my %char = map{
@@ -886,7 +937,7 @@ sub define_charset {
     
 		}
 
-	} (<CHAR_MAP>);
+	} (@charset_data);
 		
 	%charset = %char;		# for a direct translation of hexadecimal values
 	warn $@ if $@;
@@ -1150,8 +1201,9 @@ sub debug {
 
 		} else {
 
-			pop_output();
-		
+			# There may actually be content at this point!
+			flush_top_output();
+			
 		}
 
 	},
@@ -1207,6 +1259,15 @@ sub debug {
 	###########################################################
 
    'bin' => sub { $_[SELF]->read_bin($_[ARG]) }, # value
+
+	# \ulnone should be treated as if it were \ul0...
+	###########################################################
+	
+	 'ulnone' => sub {
+		
+		$_[SELF]->do_on_char_prop( 'ul', '0', 'start' );
+		
+		},
 
 	# Clearly we're not interested in the colour table....
 	###########################################################

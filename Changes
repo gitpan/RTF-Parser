@@ -1,3 +1,13 @@
+1.8_6 Sun 14 March 2004, 22:00pm GBT
+
++ 'ansi' and 'char_map' files put into modules, to make
+  packing the module into an executable easier, and to
+  make some really nasty code redundant
++ RTF::TEXT::Converter does The Right Thing with entities
+  and blank lines, even on non \ansi files...
++ Little files now get converted properly
+- \ulnone treated like \ul0 in RTF::Control
+
 1.8_5 Sat 24 January 2004, 10:45pm GBT
 
 + Documentation is almost done

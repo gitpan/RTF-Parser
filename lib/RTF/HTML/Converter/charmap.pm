@@ -1,3 +1,17 @@
+package RTF::HTML::Converter::charmap;
+
+my @data = (<DATA>);
+chomp(@data);
+
+sub data {
+
+	return @data;
+
+}
+
+1;
+
+__DATA__
 exclam		!
 quotedbl	"
 numbersign	#
