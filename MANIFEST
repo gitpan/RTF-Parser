@@ -1,0 +1,9 @@
+MANIFEST
+Makefile.PL
+README
+rtf2html.pl
+RTF/Charsets.pm
+RTF/Config.pm
+RTF/Control.pm
+RTF/Parser.pm
+RTF/HTML/Output.pm
