@@ -1,9 +1,9 @@
 # Philippe Verdret 1998-1999
 use strict;
-package RTF::HTML::Output;
+package RTF::HTML::Converter;
 
 use RTF::Control;
-@RTF::HTML::Output::ISA = qw(RTF::Control);
+@RTF::HTML::Converter::ISA = qw(RTF::Control);
 
 use constant TRACE => 0;
 use constant LIST_TRACE => 0;
@@ -150,7 +150,7 @@ my $in_Bookmark = -1;			# nested links are illegal, not used
 				# Paragraph styles
      #print STDERR "$style\n" if LIST_TRACE;
      return output($text) unless $text =~ /\S/;
-     my ($tag_start, $tag_end, $before);
+     my ($tag_start, $tag_end, $before) = ('','','');
 
      if (defined(my $level = $UL_STYLES{$style})) { # registered list styles
        if ($level > @LIST_STACK) {
@@ -203,6 +203,28 @@ my $in_Bookmark = -1;			# nested links are illegal, not used
      }
      $START_NEW_PARA = 1;
    },
+				# Hypertextuel links
+#   'bookmark' => sub {
+#     $_[SELF]->trace("bookmark $event $text") if TRACE;
+#     if ($event eq 'end') {
+#       return if $in_Bookmark--;
+#       output("</a>");
+#     } else {
+#       return if ++$in_Bookmark;
+#       output("<a name='$text'>");
+#     }
+#   },
+#   'field' => sub {
+#     my $id = $_[0];
+#     $_[SELF]->trace("field $event $text") if TRACE;
+#     if ($event eq 'end') {
+#       return if $in_Field--;
+#       output("$text</a>");
+#     } else {
+#       return if ++$in_Field;
+#       output("<a href='#$id'>"); # doesn't work!
+#     }
+#   },
 				# CHAR properties
    'b' => sub {			
      $style = 'b';
@@ -310,9 +332,9 @@ sub gen_tags {			# manage a minimal context for tag outputs
 $do_on_control{'ansi'} =	# callcack redefinition
   sub {
     # RTF: \'<hex value>
-    # HTML: &#<hex value>;
+    # HTML: &#<dec value>;
     my $charset = $_[CONTROL];
-    my $charset_file = $_[SELF]->application_dir() . "/$charset";
+    my $charset_file = $_[SELF]->application_dir(__FILE__) . "/$charset";
     open CHAR_MAP, "$charset_file"
       or die "unable to open the '$charset_file': $!";
 
@@ -360,7 +382,7 @@ sub symbol {
 				# certainly do the same thing with the char() method
 sub text {			# parser callback redefinition
   my $text = $_[1];
-  my $char_props;
+  my $char_props = '';
   if ($START_NEW_PARA) {	
     $char_props = $_[SELF]->force_char_props('start');
     $START_NEW_PARA = 0;
@@ -370,7 +392,11 @@ sub text {			# parser callback redefinition
   $text =~ s/&/&amp;/g;	
   $text =~ s/</&lt;/g;	
   $text =~ s/>/&gt;/g;	
-  output("$char_props$text");
+  if (defined $char_props) { 
+    output("$char_props$text");
+  } else {
+    output("$text");
+  }
 }
 
 1;

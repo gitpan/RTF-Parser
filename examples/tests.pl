@@ -1,8 +1,6 @@
-#!/usr/local/bin/perl
+#!/usr/local/bin/perl -w
 require 5.000;
 use strict;
-
-my $VERSION = "1.03";
 
 use Getopt::Long;
 use File::Basename;
@@ -16,12 +14,15 @@ use lib $DIRNAME;
 
 select(STDOUT);
 
-require RTF::HTML::Output;
-my $self = new RTF::HTML::Output;	
+require RTF::HTML::Converter;
+my $result;
+my $self = new RTF::HTML::Converter(Output => \$result);	
 
 if (@ARGV)  {
   foreach my $filename (@ARGV) {
     $self->parse_stream($filename);
+    print $result;
+    $result = '';
   }
 } else {
   while (<DATA>) {
@@ -31,6 +32,8 @@ if (@ARGV)  {
     print STDERR "RTF string: $_";
     print STDERR "-" x 30, "\n";
     $self->parse_string($_);
+    print $result;
+    $result = '';
   }
 }
 __END__
@@ -41,7 +44,7 @@ __END__
 #{\b introduction \par } # Ok!
 #{\b first B{\b0 mm{\b b}m}b} #!Ok
 #{\b first B{\b0 mm{\b b}m}b\par} # !Ok
-#{\i {\b first B{\b0 mm{\b b}m}b\par second B}}!Ok
+#{\i {\b first B{\b0 mm{\b b}m}b\par second B}} #!Ok
 #{{\par }\b {Introduction\par }}
 #{\pard\plain \b{Introduction\par }}
 #{\b bold \i Bold Italic \i0 Bold again} # Ok!

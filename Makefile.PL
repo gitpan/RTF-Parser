@@ -11,7 +11,7 @@ use ExtUtils::MakeMaker;
                NAME          => 'RTF::Parser',
                EXE_FILES     => [ 'rtf2html' ],
                DISTNAME      => 'RTF-Parser',
-               VERSION_FROM  => 'RTF/Parser.pm',
-               dist          => {COMPRESS => 'gzip', SUFFIX => 'gz'},
+               VERSION_FROM  => 'lib/RTF/Parser.pm', 
+               dist          => {COMPRESS => 'gzip', SUFFIX => 'gz', },
               );
 

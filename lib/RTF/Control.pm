@@ -71,6 +71,43 @@ my $cli = 0;			# current line indent value
 my $styledef = '';
 
 ###########################################################################
+				# Added methods
+sub new {
+  my $receiver = shift;
+  my $self = $receiver->SUPER::new(@_);
+  $self->configure(@_);
+}
+sub configure { 
+  my $self = shift;
+  unless (@_ >= 2) { }
+  my ($key, $value);
+  while (@_ >= 2) {
+    ($key, $value) = (shift, shift);
+    if ($key =~ /^-?[Oo]utput$/) {
+      set_top_output_to($value);
+      $self->{$key} = $value;
+    } else {
+      last;
+    }
+  }
+  $self;
+}
+
+# application_dir(__FILE__)
+# returns: dirname
+use constant APPLICATION_DIR => 0;
+sub application_dir {
+  my $file = $_[1];
+  my $dirname;
+  if (-f $file) {		
+    $dirname = dirname $file; 
+  } else {
+    $dirname = dirname '.' . $file; 
+  }
+  "$dirname"; 				
+}
+###########################################################################
+				# Utils
 				# output stack management
 my @output_stack;
 use constant MAX_OUTPUT_STACK_SIZE => 0; # 8 seems a good value
@@ -87,40 +124,64 @@ sub push_output {
   if (MAX_OUTPUT_STACK_SIZE) {
     die "max size of output stack exceeded" if @output_stack == MAX_OUTPUT_STACK_SIZE;
   }
-  if ($_[0] eq 'nul') {
-    *output = $nul_output_sub;
-  } else {
+
+  unless (defined($_[0])) {
+    local $^W = 0;
     *output = $string_output_sub; 
+  } elsif ($_[0] eq 'nul') {
+    local $^W = 0;
+    *output = $nul_output_sub;
   }
+
   push @output_stack, '';
 }
 sub pop_output {  pop @output_stack; }
-
-#my $flush_top_output_level = 2;
-sub flush_top_output { 
-  #return unless @output_stack == $flush_top_output_level;
-  my $content = $output_stack[TOP]; 
-#  if (@output_stack > 1) {
-#    warn "content:->@output_stack<-\n"; 
-#  }
-  $output_stack[TOP] = ''; 
-  print $content 
-}
-sub print_output_stack {
-  if (@output_stack) {
-    print @output_stack;
-    @output_stack = ();
+use constant SET_TOP_OUTPUT_TO_TRACE => 0;
+sub set_top_output_to {
+  local *X = $_[0];
+  if (fileno X) {		# set_top_output_to(\*FH)
+				# is there a better way to do this?
+    my $stream = *X;
+    print STDERR "stream: ", fileno X, "\n" if SET_TOP_OUTPUT_TO_TRACE;
+    local $^W = 0;
+    *flush_top_output = sub {
+      print $stream $output_stack[TOP];
+      $output_stack[TOP] = ''; 
+    };
+  } elsif (ref $_[0] eq 'SCALAR') { # set_top_output_to(\$string)
+    print STDERR "output to string\n" if SET_TOP_OUTPUT_TO_TRACE;
+    my $content_ref = $_[0];
+    local $^W = 0;
+    *flush_top_output = sub {
+      $$content_ref .= $output_stack[TOP]; 
+      $output_stack[TOP] = ''; 
+    };
   } else {
-    warn "empty \@output_stack\n";
+    warn "unknown output specification: $_[0]\n";
   }
+
 }
+# the default prints on the selected output filehandle
+sub flush_top_output {		
+  print $output_stack[TOP]; 
+  $output_stack[TOP] = ''; 
+}
+#sub print_output_stack {
+#  if (@output_stack) {
+#    print @output_stack;
+#    @output_stack = ();
+#  } else {
+#    warn "empty \@output_stack\n";
+#  }
+#}
 ###########################################################################
 				# Trace management
-use constant TRACE => 0;	# General trace
-use constant STYLESHEET_TRACE => 0; # If you want to see the stylesheet of the document
-use constant LIST_TRACE => 0;
-use constant STACK_TRACE => 0;	# 
 use constant DEBUG => 0;
+use constant TRACE => 0;	
+use constant STACK_TRACE => 0;	# 
+use constant STYLESHEET_TRACE => 0; # If you want to see the stylesheet of the document
+use constant STYLE_TRACE => 0; # 
+use constant LIST_TRACE => 0;
 
 $| = 1 if TRACE or STACK_TRACE or DEBUG;
 sub trace {
@@ -136,21 +197,6 @@ $SIG{__DIE__} = sub {
   Carp::confess;
 } if DEBUG;
 
-###########################################################################
-use constant APPLICATION_DIR => 0; # how to find the application directory?
-sub application_dir {
-  my $pkg_name = __PACKAGE__ . ".pm";
-  $pkg_name =~ s!::!/!g;
-  my $dirname = dirname($INC{$pkg_name});
-
-  if (-f __FILE__) {		# is there a better solution?
-    $dirname = dirname __FILE__;
-  } else {
-    $dirname = dirname '.' . __FILE__;
-  }
-  ref $_[SELF] =~ m!.*::(.*)::.*!; # RTF/<output format>: RTF/HTML, RTF/Text...
-  "$dirname/$1";
-}
 ###########################################################################
 				# Some generic routines
 use constant DISCARD_CONTENT => 0;
@@ -266,12 +312,16 @@ sub force_char_props {		# force a START/END event
   $char_prop_change = 0;
   pop_output();
 }
+use constant PROCESS_CHAR_PROPS => 0;
 sub process_char_props {
   return if $IN_STYLESHEET or $IN_FONTTBL;
   return unless $char_prop_change;
   push_output();
   while (my($char_prop, $value) = each %char_props) {
-    if ($current_char_props{$char_prop} != $value) {
+    my $prop = $current_char_props{$char_prop};
+    $prop = defined $prop ? $prop : 0;
+    trace "$char_prop $value" if PROCESS_CHAR_PROPS;
+    if ($prop != $value) {
       if (defined (my $action = $do_on_event{$char_prop})) {
 	$event = $value == 1 ? 'start' : 'end';
 	($style, $event) = ($char_prop, $event);
@@ -279,6 +329,7 @@ sub process_char_props {
       }
       $current_char_props{$char_prop} = $value;
     }
+    trace "$char_prop - $prop - $value" if PROCESS_CHAR_PROPS;
   }
   $char_prop_change = 0;
   pop_output();
@@ -289,9 +340,9 @@ sub do_on_char_prop {		# associated callback
   my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
   trace "my(\$control, \$arg, \$cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);" if DO_ON_CHAR_PROP;
   $char_prop_change = 1;
-  if ($_[ARG] eq "0") {		# \b0
+  if (defined($_[ARG]) and $_[ARG] eq "0") {		# \b0 
     $char_props{$_[CONTROL]} = 0;
-  } elsif ($_[EVENT] eq 'start') { # \b or \b1
+  } elsif ($_[EVENT] eq 'start') { # eg. \b or \b1
     $char_props{$_[CONTROL]} = 1; 
   } else {			# 'end'
     warn "statement not reachable";
@@ -308,7 +359,6 @@ sub do_on_toggle {		# associated callback
   my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
   trace "my(\$control, \$arg, \$cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);" if DO_ON_TOGGLE;
 
-  my $action;
   if ($_[ARG] eq "0") {		# \b0, register an START event for this control
     $control[TOP]->{"$_[CONTROL]1"} = 1; # register a start event for this properties
     $cevent = 'end';
@@ -321,7 +371,7 @@ sub do_on_toggle {		# associated callback
     }
   }
   trace "(\$style, \$event, \$text) = ($control, $cevent, '')" if DO_ON_TOGGLE;
-  if (defined ($action = $do_on_event{$control})) {
+  if (defined (my $action = $do_on_event{$control})) {
     ($style, $event, $text) = ($control, $cevent, '');
     &$action;
   } 
@@ -350,7 +400,7 @@ sub define_charset {
   };
   warn $@ if $@;
 
-  my $charset_file = $_[SELF]->application_dir() . "/char_map";
+  my $charset_file = $_[SELF]->application_dir(__FILE__) . "/char_map";
   #print STDERR __FILE__, " $charset_file $application\n";
 
   open CHAR_MAP, "$charset_file"
@@ -474,7 +524,9 @@ my $field_ref = '';		# identifier associated to a field
 
    'f', sub {			
      #my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
-
+     # perhaps interesting to provide a contextual
+     # definition of this kind of control words
+     # eg. in fonttbl call 'fonttbl:f', outside call 'f'
      use constant FONTTBL_TRACE => 0; # if you want to see the fonttbl of the document
      if ($IN_FONTTBL) {
        if ($_[EVENT] eq 'start') {
@@ -647,7 +699,6 @@ my $field_ref = '';		# identifier associated to a field
      trace "\@output_stack in table: ", @output_stack+0 if STACK_TRACE;
    },
    'par' => sub {		# END OF PARAGRAPH
-     use constant STYLE_TRACE => 0; # 
      #my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
      trace "($_[CONTROL], $_[ARG], $_[EVENT])" if STYLE_TRACE;
      if ($IN_TABLE and not $par_props{'intbl'}) { # End of Table
@@ -680,7 +731,7 @@ my $field_ref = '';		# identifier associated to a field
        #push_output();	
      }
 				# paragraph style
-     if ($cstylename ne '') {	# end of previous style
+     if (defined($cstylename) and $cstylename ne '') { # end of previous style
        $style = $cstylename;
      } else {
        $cstylename = $style = 'par'; # no better solution
@@ -692,7 +743,7 @@ my $field_ref = '';		# identifier associated to a field
        if (defined (my $action = $do_on_event{$style})) {
 	 ($style, $event, $text) = ($style, 'end', pop_output);
 	 &$action;
-       } elsif (defined (my $action = $do_on_event{'par'})) {
+       } elsif (defined ($action = $do_on_event{'par'})) {
 	 #($style, $event, $text) = ('par', 'end', pop_output);
 	 ($style, $event, $text) = ($style, 'end', pop_output);
 	 &$action;
@@ -706,7 +757,7 @@ my $field_ref = '';		# identifier associated to a field
        &$action;
        flush_top_output();
        push_output(); 
-     } elsif (defined (my $action = $do_on_event{'par'})) {
+     } elsif (defined ($action = $do_on_event{'par'})) {
        #($style, $event, $text) = ('par', 'end', pop_output);
        ($style, $event, $text) = ($style, 'end', pop_output);
        &$action;
@@ -869,9 +920,7 @@ my $field_ref = '';		# identifier associated to a field
    },
   );
 ###########################################################################
-
-				# Callback methods
-				# 
+				# Parser callback definitions
 use constant GROUP_START_TRACE => 0;
 sub group_start {		# on {
   my $self = shift;
@@ -947,7 +996,7 @@ sub parse_end {
     ($style, $event, $text) = ($cstylename, 'end', '');
     &$action;
   } 
-  print_output_stack();
+  flush_top_output();		# @output_stack == 2;
 }
 use vars qw(%not_processed);
 END {

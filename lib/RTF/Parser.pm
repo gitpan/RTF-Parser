@@ -5,7 +5,7 @@ require 5.004;
 use strict;
 package RTF::Parser;
 
-$RTF::Parser::VERSION = "1.05";
+$RTF::Parser::VERSION = "1.06";
 use RTF::Config;
 use File::Basename;
 
@@ -103,13 +103,13 @@ sub error {			# not used
 # $self->$control($control, $arg, 'start');
 # I'll certainly redefine this in a next release
 my $DO_ON_CONTROL = \%RTF::Control::do_on_control; # default
-sub controlDefinition {
+sub control_definition {
   my $self = shift;
   if (@_) {
     if (ref $_[0]) {
       $DO_ON_CONTROL = shift;
     } else {
-      die "argument of controlDefinition method must be an HASHREF";
+      die "argument of control_definition() method must be an HASHREF";
     }
   } else {
     $DO_ON_CONTROL;
@@ -302,7 +302,7 @@ sub read_bin {
   my $toread = $length - length($binary);
   print STDERR "data to read: $toread\n" if READ_BIN;
   if ($toread > 0) {
-    my $n = read($fh, $binary, $toread, length($binary));
+    my $n = CORE::read($fh, $binary, $toread, length($binary));
     print STDERR "binary data: $n chars\n" if READ_BIN;
     unless ($toread == $n) {
       die "unable to read binary data\n";

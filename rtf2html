@@ -4,7 +4,7 @@
 # You can try this converter on replicas.rtf
 # from <http://www.research.microsoft.com/~gray/replicas.rtf>
 
-require 5.000;
+require 5.004;
 use strict;
 
 my $VERSION = "1.03";
@@ -15,9 +15,8 @@ use File::Basename;
 use vars qw/$BASENAME $DIRNAME/;
 BEGIN {
   ($BASENAME, $DIRNAME) = fileparse($0); 
-#  unshift @INC, "/users/phv/RTF/rtfparser/rtfparser-1.03";
 }
-use lib $DIRNAME;
+use lib "$DIRNAME/lib";
 
 my $usage = "usage: 
  -h                    print this help
@@ -60,8 +59,8 @@ if ($opt_d) {
 
 select(STDOUT);
 
-require RTF::HTML::Output;
-my $self = new RTF::HTML::Output;	
+require RTF::HTML::Converter;
+my $self = new RTF::HTML::Converter(Output => \*STDOUT);	# actually the default
 
 foreach my $filename (@ARGV) {
   $self->parse_stream($filename);
