@@ -1203,6 +1203,14 @@ sub debug {
 
 			# There may actually be content at this point!
 			flush_top_output();
+
+			# The buffer should be empty at this point.
+			# Make it so :-) This should use an RTF::Tokenizer
+			# method before I release this as production.
+			# TODO...
+
+			$_[SELF]->{_TOKENIZER}->{_BUFFER} = '';
+			$_[SELF]->{_TOKENIZER}->{_FILEHANDLE} = '';
 			
 		}
 

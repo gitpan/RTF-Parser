@@ -28,6 +28,7 @@ t/02_control_01_new.t
 t/02_control_02_configure.t
 t/02_control_03_application_dir.t
 t/02_control_04_charmap_reader.t
+t/02_control_05_strip_dead_content.t
 t/03_html_01_handling_ulnone.t
 t/05_charmaps_01_loading.t
 t/05_charmaps_02_html_sample.t

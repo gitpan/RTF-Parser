@@ -1,3 +1,11 @@
+1.09 Tue 30 March 2004, 13:00pm BST
+
++ Decided to release a 'production' version. It works, it works
+  well, it just lacks some documentation. This way, people will 
+	find it. That's good.
+
++ Fixed a bug that'd allow trailing data after the last }
+
 1.8_7 Wed 17 March 2004, 15:00pm GBT
 
 + Actually fixed ansi/charmap problem actually for real :-/
