@@ -1,13 +1,18 @@
-# need to be improved!!!
+				# pca isn't defined!!!
 use strict;
 package RTF::Charsets;
 use Exporter;
 use vars qw(@ISA @EXPORT);
 @ISA = qw(Exporter);
-use vars qw(%ansi %pc);
-@EXPORT = qw(%ansi %pc);
+use vars qw(%ansi %pc %pca %mac);
+@EXPORT = qw(%ansi %pc %pca %mac);
 
-my %ansi_chars = qw(
+# char sets from the RTF processor of Paul DuBois(dubois@primate.wisc.edu)
+%ansi = qw(
+	   formula		06
+	   nobrkhyphen	1e
+	   opthyphen	1f
+	   ellipsis	85
 	   nobrkspace	a0
 	   exclamdown	a1
 	   cent		a2
@@ -32,80 +37,80 @@ my %ansi_chars = qw(
 	   mu		b5
 	   paragraph	b6
 	   periodcentered	b7
-	   cedil		b8
+	   cedilla		b8
 	   onesuperior	b9
 	   ordmasculine	ba
 	   guillemotright	bb
-	   onequarter         bc
+	   onequarter	bc
 	   onehalf		bd
 	   threequarters	be
 	   questiondown	bf
 	   Agrave		c0
 	   Aacute		c1
-	   Acirc	c2
+	   Acircumflex	c2
 	   Atilde		c3
 	   Adieresis	c4
 	   Aring		c5
 	   AE		c6
-	   Ccedil	c7
+	   Ccedilla	c7
 	   Egrave		c8
 	   Eacute		c9
-	   Ecirc	ca
+	   Ecircumflex	ca
 	   Edieresis	cb
 	   Igrave		cc
 	   Iacute		cd
-	   Icirc	ce
+	   Icircumflex	ce
 	   Idieresis	cf
 	   Eth		d0
 	   Ntilde		d1
 	   Ograve		d2
 	   Oacute		d3
-	   Ocirc	d4
+	   Ocircumflex	d4
 	   Otilde		d5
 	   Odieresis	d6
 	   multiply	d7
 	   Oslash		d8
 	   Ugrave		d9
 	   Uacute		da
-	   Ucirc	db
+	   Ucircumflex	db
 	   Udieresis	dc
 	   Yacute		dd
 	   Thorn		de
 	   germandbls	df
 	   agrave		e0
 	   aacute		e1
-	   acirc	e2
+	   acircumflex	e2
 	   atilde		e3
 	   adieresis	e4
 	   aring		e5
 	   ae		e6
-	   ccedil	e7
+	   ccedilla	e7
 	   egrave		e8
 	   eacute		e9
-	   ecirc	ea
+	   ecircumflex	ea
 	   edieresis	eb
 	   igrave		ec
 	   iacute		ed
-	   icirc	ee
+	   icircumflex	ee
 	   idieresis	ef
 	   eth		f0
 	   ntilde		f1
 	   ograve		f2
 	   oacute		f3
-	   ocirc	f4
+	   ocircumflex	f4
 	   otilde		f5
 	   odieresis	f6
 	   divide		f7
 	   oslash		f8
 	   ugrave		f9
 	   uacute		fa
-	   ucirc	fb
+	   ucircumflex	fb
 	   udieresis	fc
 	   yacute		fd
 	   thorn		fe
 	   ydieresis	ff
 	  );
-my %pc_chars = qw(
+%pc = qw(
 	 Ccedil	80
 	 udieresis	81
 	 eacute	82
@@ -235,15 +240,138 @@ my %pc_chars = qw(
 	 ogonek	fe
 	 nbsp	ff
 	);
-%ansi = reverse %ansi_chars;
-%pc = reverse %pc_chars;
+%mac = qw(
+	  formula		06
+	  nobrkhyphen	1e
+	  opthyphen	1f
+	  Adieresis	80
+	  Aring		81
+	  Ccedilla	82
+	  Eacute		83
+	  Ntilde		84
+	  Odieresis	85
+	  Udieresis	86
+	  aacute		87
+	  agrave		88
+	  acircumflex	89
+	  adieresis	8a
+	  atilde		8b
+	  aring		8c
+	  ccedilla	8d
+	  eacute		8e
+	  egrave		8f
+	  ecircumflex	90
+	  edieresis	91
+	  iacute		92
+	  igrave		93
+	  icircumflex	94
+	  idieresis	95
+	  ntilde		96
+	  oacute		97
+	  ograve		98
+	  ocircumflex	99
+	  odieresis	9a
+	  otilde		9b
+	  uacute		9c
+	  ugrave		9d
+	  ucircumflex	9e
+	  udieresis	9f
+	  dagger		a0
+	  degree		a1
+	  cent		a2
+	  sterling	a3
+	  section		a4
+	  bullet		a5
+	  paragraph	a6
+	  germandbls	a7
+	  registered	a8
+	  copyright	a9
+	  trademark	aa
+	  acute		ab
+	  dieresis	ac
+	  notequal	ad
+	  AE		ae
+	  Oslash		af
+	  infinity	b0
+	  plusminus	b1
+	  lessequal	b2
+	  greaterequal	b3
+	  yen		b4
+	  mu		b5
+	  partialdiff	b6
+	  Sigma		b7
+	  Pi		b8
+	  pi		b9
+	  integral	ba
+	  ordfeminine	bb
+	  ordmasculine	bc
+	  Omega		bd
+	  ae		be
+	  oslash		bf
+	  questiondown	c0
+	  exclamdown	c1
+	  logicalnot	c2
+	  radical		c3
+	  florin		c4
+	  approxequal	c5
+	  Delta		c6
+	  guillemotleft	c7
+	  guillemotright	c8
+	  ellipsis	c9
+	  nobrkspace	ca
+	  Agrave		cb
+	  OE		ce
+	  oe		cf
+	  endash		d0
+	  emdash		d1
+	  quotedblleft	d2
+	  quotedblright	d3
+	  quoteleft	d4
+	  quoteright	d5
+	  divide		d6
+	  lozenge		d7
+	  ydieresis	d8
+	  Ydieresis	d9
+	  fraction	da
+	  currency	db
+	  guilsinglleft	dc
+	  guilsinglright	dd
+	  fi		de
+	  fl		df
+	  daggerdbl	e0
+	  periodcentered	e1
+	  quotesinglbase	e2
+	  quotedblbase	e3
+	  perthousand	e4
+	  Acircumflex	e5
+	  Ecircumflex	e6
+	  Aacute		e7
+	  Edieresis	e8
+	  Egrave		e9
+	  Iacute		ea
+	  Icircumflex	eb
+	  Idieresis	ec
+	  Igrave		ed
+	  Oacute		ee
+	  Ocircumflex	ef
+	  apple		f0
+	  Ograve		f1
+	  Uacute		f2
+	  Ucircumflex	f3
+	  Ugrave		f4
+	  dotlessi	f5
+	  circumflex	f6
+	  tilde		f7
+	  macron		f8
+	  breve		f9
+	  dotaccent	fa
+	  ring		fb
+	  cedilla		fc
+	  hungarumlaut	fd
+	  ogonek		fe
+	  caron		ff
+	 );
+%pca = qw();
 
 1;
 __END__
-#@EXPORT = qw(entities2pc pc2entities %entities2pc %pc2entities);
-#sub pc2entities { "$pc2entities{$_[0]}" }
-#sub entities2pc {
-#  my $char = $_[0];
-#  #$char =~ s/&(.+);//;
-#  "\\'$entities2pc{$char}";
-#}

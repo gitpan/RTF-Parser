@@ -1,9 +1,14 @@
+Changes
 MANIFEST
+Makefile
 Makefile.PL
 README
-rtf2html.pl
 RTF/Charsets.pm
 RTF/Config.pm
 RTF/Control.pm
-RTF/Parser.pm
 RTF/HTML/Output.pm
+RTF/HTML/ansi
+RTF/HTML/char_map
+RTF/Parser.pm
+examples/tests.pl
+rtf2html

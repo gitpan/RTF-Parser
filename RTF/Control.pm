@@ -3,27 +3,45 @@
 # Stack machine - must be application independant!
 # 
 # defined some interesting events for your application
+# an application can redefine its own control callbacks if %do_on_control is exported
 
-# application could redefine its own control callbacks if %do_on_control was exported
+# todo:
+# - output well-formed HTML
+# - list processing
+
 use strict;
 require 5.003;
 package RTF::Control;
 use RTF::Parser;
 use RTF::Config;
-use RTF::Charsets;
+use RTF::Charsets;		# define names of chars
 
+use File::Basename;
 use Exporter;
 @RTF::Control::ISA = qw(Exporter RTF::Parser);
 
 				# here is what you can use in your application
-use vars qw(%char %symbol %info %do_on_event 
-	    %par_props
-	    $style $newstyle $event $text);
+use vars qw(%symbol %info  %do_on_event %par_props
+	    %do_on_control
+	    $style $newstyle $event $text
+	   );
+###########################################################################
+				# Specification of the callback interface
+				# so you can easily reorder sub arguments
+use constant SELF => 0;		# rtf processor instance 
+use constant CONTROL => 1;	# control word
+use constant ARG => 2;		# associated argument
+use constant EVENT => 3;	# start/end event
+###########################################################################
 				# symbols to export in the application layer
 @RTF::Control::EXPORT = qw(output 
-			   %char %symbol %info %do_on_event 
+			   %symbol %info %do_on_event
+			   %do_on_control
 			   %par_props
-			   $style $newstyle $event $text);
+			   $style $newstyle $event $text
+			   SELF CONTROL ARG EVENT
+			  );
+###########################################################################
 
 %do_on_event = ();		# output routines
 $style = '';			# current style
@@ -31,18 +49,8 @@ $newstyle = '';			# new style if style changing
 $event = '';			# start or end
 $text = '';			# pending text
 %symbol = ();			# symbol translations
-%char = ();			# character translations
 %info = ();			# info part of the document
 %par_props = ();		# paragraph properties
-
-###########################################################################
-				# Specification of the callback interface
-				# so you can easily reorder arguments
-use constant SELF => 0;
-use constant CONTROL => 1;
-use constant ARG => 2;
-use constant EVENT => 3;
-
 ###########################################################################
 				# Automata states, control modes
 my $IN_STYLESHEET = 0;		# inside or outside style table
@@ -52,8 +60,9 @@ my $IN_TABLE = 0;
 my %fonttbl;
 my %stylesheet;
 my %colortbl;
-my @par = ();			# stack of paragraph properties
-my @control = ();		# stack of control instructions
+my @par_props_stack = ();	# stack of paragraph properties
+my @char_props_stack = ();	# stack of character properties
+my @control = ();		# stack of control instructions, rename control_stack
 my $stylename = '';
 my $cstylename = '';		# previous encountered style
 my $cli = 0;			# current line indent value
@@ -70,13 +79,11 @@ sub dump_stack {
   print STDERR map { $i-- . " |$_|\n" } reverse @output_stack;
 }
 my $nul_output_sub = sub {};
-my $string_output_sub = sub { $output_stack[-1] .= $_[0]; };
-sub output { 
-  $output_stack[-1] .= $_[0] 
-};
+my $string_output_sub = sub { $output_stack[-1] .= $_[0] };
+sub output { $output_stack[-1] .= $_[0] }
 sub push_output {  
   if (MAX_OUTPUT_STACK_SIZE) {
-    die "max size of the output stack exceeded" if @output_stack == MAX_OUTPUT_STACK_SIZE;
+    die "max size of output stack exceeded" if @output_stack == MAX_OUTPUT_STACK_SIZE;
   }
   if ($_[0] eq 'nul') {
     *output = $nul_output_sub;
@@ -114,11 +121,26 @@ $SIG{__DIE__} = sub {
 } if DEBUG;
 
 ###########################################################################
+use constant APPLICATION_DIR => 0; # how to find the application directory?
+sub application_dir {
+  my $pkg_name = __PACKAGE__ . ".pm";
+  $pkg_name =~ s!::!/!g;
+  my $dirname = dirname($INC{$pkg_name});
+
+  if (-f __FILE__) {		# is there a better method?
+    $dirname = dirname __FILE__;
+  } else {
+    $dirname = dirname '.' . __FILE__;
+  }
+  ref $_[SELF] =~ m!.*::(.*)::.*!; # RTF/<output format>: RTF/HTML, RTF/Text...
+  "$dirname/$1";
+}
+###########################################################################
 				# Some generic routines
 use constant DISCARD_CONTENT => 0;
 sub discard_content {		
   my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
-  #trace "($_[CONTROL], $_[ARG], $_[EVENT])" if DISCARD_CONTENT;
+  trace "($_[CONTROL], $_[ARG], $_[EVENT])" if DISCARD_CONTENT;
   if ($_[ARG] eq "0") { 
     pop_output();
     $control[-1]->{"$_[CONTROL]1"} = 1;
@@ -139,18 +161,6 @@ sub discard_content {
   }
 }
 
-
-my %charset;
-my $bulletItem;
-sub define_charset {
-  #my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
-  no strict qw/refs/;
-  eval {			# if not defined in RTF::Charsets
-    %charset = %{"$_[CONTROL]"};
-  };
-  warn $@ if $@;
-  $bulletItem = quotemeta($char{'periodcentered'});
-}
 sub do_on_info {		# 'info' content
   #my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
   my $string;
@@ -163,77 +173,144 @@ sub do_on_info {		# 'info' content
   }
 }
 				# SYMBOLS
-				# default mapping for symbols
+# default mapping for symbols
+# char processed by the parser symbol() callback: - _ ~ : | { } * ' \\
 %symbol = qw(
 	     | |
 	     _ _
 	     : :
-	     rdblquote "
-	     ldblquote "
+	     bullet *
 	     endash -
-	     emdash -
-	     bullet o
-	     rquote '
-	    );			# '
+	     emdash --
+	     ldblquote ``
+	     rdblquote ''
+	     );
+$symbol{rquote} = "\'";
+$symbol{lquote} = "\`";
+$symbol{'column'} = "\t";
+$symbol{'tab'} = "\t";
+$symbol{'line'} = "\n";
+$symbol{'page'} = "\f";
+
 sub do_on_symbol { output $symbol{$_[CONTROL]} }
-my %symbol_ctrl = 
-  (
-   'emdash' => \&do_on_symbol,
-   'rquote' => \&do_on_symbol,
-   'ldblquote' => \&do_on_symbol,
-   'rdblquote' => \&do_on_symbol,
-  );
+my %symbol_ctrl = map {		# install the do_on_symbol() routine
+  if (/^[a-z]+$/) {
+    $_ => \&do_on_symbol
+  } else {
+    undef => undef;
+  }
+} keys %symbol;
 
-
-				# TOGGLES
-				# Many situations can occur:
-				# {\<toggle> ...}
-				# {\<toggle>0 ...}
-				# \<control>\<toggle>
-				# eg: \par \pard\plain \s19 \i\f4
-
-use constant DO_ON_TOGGLE => 0;
-sub do_on_toggle {
-  return if $IN_STYLESHEET or $IN_FONTTBL;
-  my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
-  trace "my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);" if DO_ON_TOGGLE;
-
-  if ($_[ARG] eq "0") { 
-    $cevent = 'end';
-    trace "argument: |$_[ARG]| at line $.\n" if DO_ON_TOGGLE;
-    $control[-1]->{"$_[CONTROL]1"} ; # register an END event
-    if (defined (my $action = $do_on_event{$control})) {
-      ($style, $event, $text) = ($control, 'end', '');
-      &$action;
-    } 
-  } elsif ($_[EVENT] eq 'start') {
-    $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
-    
-    if (defined (my $action = $do_on_event{$control})) {
-      ($style, $event, $text) = ($control, 'start', '');
-      trace "($style, $event, $text)\n" if DO_ON_TOGGLE;
-      &$action;
-    } 
-    
-  } else {			# END
-    $cevent = 'start' if $_[ARG] eq "1"; # see above
-    if (defined (my $action = $do_on_event{$control})) {
-      ($style, $event, $text) = ($control, $cevent, '');
-      &$action;
-    } 
+###########################################################################################
+my %char_props;			# control hash must be declarated before install_callback()
+# purpose: associate callbacks to controls
+# 1. an hash name that contains the controls
+# 2. a callback name
+sub install_callback {		# not a method!!!
+  my($control, $callback) = ($_[1], $_[2]);
+  no strict 'refs';
+  unless (defined(%char_props)) { # why I can't write %{$control}
+    die "'%$control' not defined";
+  }
+  for (keys %char_props) {
+    $do_on_control{$_} = \&{$callback};
   }
 }
-# Just an example, do the same thing 
-# for all RTF toggles
-my %toggle_ctrl = 
-  (			
-   'b' => \&do_on_toggle,
-   'i' => \&do_on_toggle,
-   'ul' => \&do_on_toggle,
-   'sub' => \&do_on_toggle,
-   'super' => \&do_on_toggle,
-  );
+				# TOGGLES
+				# {\<toggle> ...}
+				# {\<toggle>0 ...}
+###########################################################################
+# How to give a general definition?
+#my %control_definition = ( # control => [default_value nassociated_callback]
+#			  'char_props' => qw(0 do_on_control),
+#			 );
+sub reset_char_props {
+  %char_props = map {
+    $_ => 0
+  } qw(b i ul sub super);
+}
+my $char_prop_change = 0;
+my %current_char_props = %char_props;
+use constant OUTPUT_CHAR_PROPS => 0;
+sub force_char_props {		# force a START/END event
+  return if $IN_STYLESHEET or $IN_FONTTBL;
+  trace "@_" if OUTPUT_CHAR_PROPS;
+  $event = $_[1];		# END or START
+				# close or open all activated char prorperties
+  push_output();
+  while (my($char_prop, $value) = each %char_props) {
+    next unless $value;
+    trace "$event active char props: $char_prop" if OUTPUT_CHAR_PROPS;
+    if (defined (my $action = $do_on_event{$char_prop})) {
+      ($style, $event) = ($char_prop, $event);
+      &$action;
+    }
+    $current_char_props{$char_prop} = $value;
+  }
+  $char_prop_change = 0;
+  pop_output();
+}
+sub process_char_props {
+  return if $IN_STYLESHEET or $IN_FONTTBL;
+  return unless $char_prop_change;
+  push_output();
+  while (my($char_prop, $value) = each %char_props) {
+    if ($current_char_props{$char_prop} != $value) {
+      if (defined (my $action = $do_on_event{$char_prop})) {
+	$event = $value == 1 ? 'start' : 'end';
+	($style, $event) = ($char_prop, $event);
+	&$action;
+      }
+      $current_char_props{$char_prop} = $value;
+    }
+  }
+  $char_prop_change = 0;
+  pop_output();
+}
+use constant DO_ON_CHAR_PROP => 0;
+sub do_on_char_prop {		# associated callback
+  return if $IN_STYLESHEET or $IN_FONTTBL;
+  my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
+  trace "my(\$control, \$arg, \$cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);" if DO_ON_CHAR_PROP;
+  $char_prop_change = 1;
+  if ($_[ARG] eq "0") {		# \b0
+    $char_props{$_[CONTROL]} = 0;
+  } elsif ($_[EVENT] eq 'start') { # \b or \b1
+    $char_props{$_[CONTROL]} = 1; 
+  } else {			# 'end'
+    warn "statement not reachable";
+    $char_props{$_[CONTROL]} = 0;
+  }
+}
+__PACKAGE__->reset_char_props();
+__PACKAGE__->install_callback('char_props', 'do_on_char_prop');
+###########################################################################
+				# not more used!!!
+use constant DO_ON_TOGGLE => 0;
+sub do_on_toggle {		# associated callback
+  return if $IN_STYLESHEET or $IN_FONTTBL;
+  my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
+  trace "my(\$control, \$arg, \$cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);" if DO_ON_TOGGLE;
 
+  my $action;
+  if ($_[ARG] eq "0") {		# \b0, register an START event for this control
+    $control[-1]->{"$_[CONTROL]1"} = 1; # register a start event for this properties
+    $cevent = 'end';
+  } elsif ($_[EVENT] eq 'start') { # \b or \b1
+    $control[-1]->{"$_[CONTROL]$_[ARG]"} = 1;
+  } else {			# $_[EVENT] eq 'end'
+    if ($_[ARG] eq "1") {	
+      $cevent = 'start';
+    } else {			
+    }
+  }
+  trace "(\$style, \$event, \$text) = ($control, $cevent, '')" if DO_ON_TOGGLE;
+  if (defined ($action = $do_on_event{$control})) {
+    ($style, $event, $text) = ($control, $cevent, '');
+    &$action;
+  } 
+}
+###########################################################################
 				# FLAGS
 use constant DO_ON_FLAG => 0;
 sub do_on_flag {
@@ -242,17 +319,55 @@ sub do_on_flag {
   trace "$_[CONTROL]" if DO_ON_FLAG;
   $par_props{$_[CONTROL]} = 1;
 }
-my %flag_ctrl =			# Just an example, do the same thing 
-  (				# for all RTF flags
+
+use vars qw/%charset/;
+my $bullet_item = 'b7'; # will be redefined in a next release!!!
+
+				# Try to find a "RTF/<application>/char_map" file
+				# possible values for the control word are: ansi, mac, pc, pca
+sub define_charset {
+  my $charset = $_[CONTROL];
+
+  eval {			
+    no strict 'refs';
+    *charset = \%{"$charset"};
+  };
+  warn $@ if $@;
+
+  my $charset_file = $_[SELF]->application_dir() . "/char_map";
+  #print STDERR __FILE__, " $charset_file $application\n";
+
+  open CHAR_MAP, "$charset_file"
+    or die "unable to open the '$charset_file': $!";
+
+  my ($name, $char, $hexa);
+  my %char = map{
+    s/^\s+//; 
+    next unless /\S/;
+    ($name, $char) = split /\s+/; 
+    if (!defined($hexa = $charset{$name})) {
+      undef => undef;
+    } else {
+      $hexa => $char;
+    }
+  } (<CHAR_MAP>);
+  %charset = %char;		# for a direct translation of hexadecimal values
+  warn $@ if $@;
+}
+
+my %flag_ctrl =			
+  (				
    'ql' => \&do_on_flag,
    'qr' => \&do_on_flag,
    'qc' => \&do_on_flag,
    'qj' => \&do_on_flag,
 
+				# 
    'ansi' => \&define_charset,	# The default
    'mac' => \&define_charset,	# Apple Macintosh
    'pc' => \&define_charset,	# IBM PC code page 437 
    'pca' => \&define_charset,	# IBM PC code page 850
+				# 
 
    'pict' => \&discard_content,	#
    'xe'  => \&discard_content,	# index entry
@@ -273,26 +388,18 @@ my %value_ctrl =
   (
   );
 
-use vars qw(%do_on_control);
 %do_on_control = 
   (
+   %do_on_control,		
    %flag_ctrl,
    %value_ctrl,
    %symbol_ctrl,
-   %toggle_ctrl,
    %destination_ctrl,
 
    'plain' => sub {
-     unless (@control) {
-       die "\@control stack is empty";
-     }
-     my @keys = keys %{$control[-1]};
-     foreach my $control (@keys) {
-       if (defined (my $action = $do_on_event{$control})) {
-	 ($style, $event, $text) = ($control, 'end', '');
-	 &$action;
-       } 
-     }
+     #unless (@control) {       die "\@control stack is empty";     }
+     #output('plain');
+     reset_char_props();
    },
    'rtf' => \&discard_content,	# destination
    'info' => sub {		# {\info {...}}
@@ -539,7 +646,6 @@ use vars qw(%do_on_control);
        trace "end of table ($next_text)\n" if TABLE_TRACE;
        output($next_text);
      } else {
-       trace "\@output_stack in table: ", @output_stack+0 if STACK_TRACE;
        #push_output();	
      }
 				# paragraph style
@@ -548,7 +654,6 @@ use vars qw(%do_on_control);
      } else {
        $cstylename = $style = 'par'; # no better solution
      }
-       
      if ($par_props{intbl}) {	# paragraph in tbl
        trace "process cell content: $text\n" if TABLE_TRACE;
        if (defined (my $action = $do_on_event{$style})) {
@@ -583,6 +688,7 @@ use vars qw(%do_on_control);
 				# Resets to default paragraph properties
 				# Stop inheritence of paragraph properties
    'pard' => sub {		
+				# !!!-> reset_par_props()
      foreach (qw(qj qc ql qr intbl li)) {
        $par_props{$_} = 0;
      }
@@ -603,7 +709,9 @@ use vars qw(%do_on_control);
        $par_props{"$_[CONTROL]$_[ARG]"} = $string;
        #trace qq!pntext: $par_props{"$_[CONTROL]$_[ARG]"} = $string!;
 
-       if ($string =~ s/^$bulletItem//o) { # Heuristic rules
+				# will be improved in a next release
+       if ($string =~ s/^$bullet_item//o) { # Heuristic rules
+	 print STDERR "$bullet_item => $bullet_item\n";
 	 $par_props{'bullet'} = 1;
        } elsif ($string =~ s/(\d+)[.]//) { # e.g. <i>1.</i>
 	 $par_props{'number'} = $1;
@@ -623,7 +731,7 @@ use vars qw(%do_on_control);
    },
   );
 ###########################################################################
-				# 
+
 				# Callback methods
 				# 
 use constant DESTINATION_TRACE => 0;
@@ -636,21 +744,32 @@ sub destination {
 }
 
 use constant GROUP_START_TRACE => 0;
-sub groupStart {
+sub groupStart {		# on {
   my $self = shift;
   trace "" if GROUP_START_TRACE;
-  push @par, { %par_props };
+  push @par_props_stack, { %par_props };
+  push @char_props_stack, { %char_props };
   push @control, {};		# hash of controls
 }
 use constant GROUP_END_TRACE => 0;
-sub groupEnd {
-  %par_props = %{pop @par};
+sub groupEnd {			# on }
+				# par properties
+  %par_props = %{ pop @par_props_stack };
   $cstylename = $par_props{'stylename'}; # the current style 
+
+				# Char properties
+				# process control like \b0
+  %char_props = %{ pop @char_props_stack }; 
+  $char_prop_change = 1;
+  output process_char_props();
+
+				# is this useful?
   no strict qw/refs/;
-  foreach my $control (keys %{pop @control}) { # End Event!
-    $control =~ /([^\d]+)(\d+)?/;
+  foreach my $control (keys %{pop @control}) { # End Events!
+    $control =~ /([^\d]+)(\d+)?/; # eg: b0, b1
     trace "($#control): $1-$2" if GROUP_END_TRACE;
-    &{"Action::$1"}($_[0], $1, $2, 'end'); # sub associated to $1 is already defined
+    # sub associated to $1 is already defined in the "Action" package 
+    &{"RTF::Action::$1"}($_[SELF], $1, $2, 'end'); 
   }
 }
 use constant TEXT_TRACE => 0;
@@ -659,22 +778,21 @@ sub text {
   output($_[1]);
 }
 sub char {			
-  my $name;
-  my $char;
-  if (defined($char = $char{$name = $charset{$_[1]}}))  {
+  if (defined(my $char = $charset{$_[1]}))  {
+    #print STDERR "$_[1] => $char\n";
     output "$char";
   } else {
-    output "$name";	     
+    output "$_[1]"; 
   }
 }
-sub symbol {
+sub symbol {			# symbols: \ - _ ~ : | { } * \'
   if (defined(my $sym = $symbol{$_[1]}))  {
     output "$sym";
   } else {
     output "$_[1]";		# as it
   }
 }
-
+use constant PARSE_START_END => 0;
 sub parseStart {
   my $self = shift;
 
@@ -685,28 +803,23 @@ sub parseStart {
   %stylesheet = ();
 
   push_output();
-  push_output();
-
   if (defined (my $action = $do_on_event{'document'})) {
     $event = 'start';
     &$action;
   } 
+  push_output();
 }
 sub parseEnd {
   my $self = shift;
   my $action = '';
-  
   trace "parseEnd \@output_stack: ", @output_stack+0 if STACK_TRACE;
 
   if (defined ($action = $do_on_event{'document'})) {
-    ($style, $event, $text) = ($cstylename, 'end', pop_output);
+    ($style, $event, $text) = ($cstylename, 'end', '');
     &$action;
   } 
-  print pop_output;
-  if (@output_stack) {
-    my $string = pop_output;
-    warn "unanalysed string: '$string'" if $string;
-  }
+  my $content = pop_output;	
+  print pop_output, $content;
 }
 use vars qw(%not_processed);
 END {

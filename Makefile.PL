@@ -9,7 +9,7 @@ use ExtUtils::MakeMaker;
 
 &WriteMakefile(
                NAME          => 'RTF',
-               EXE_FILES     => [ 'rtf2html.pl' ],
+               EXE_FILES     => [ 'rtf2html' ],
                DISTNAME      => 'RTF-Parser',
                VERSION_FROM  => 'RTF/Parser.pm',
                dist          => {COMPRESS => 'gzip', SUFFIX => 'gz'},
