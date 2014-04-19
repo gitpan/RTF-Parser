@@ -4,6 +4,8 @@
 #	back an RTF::Control object...
 
 use strict;
+use warnings;
+
 use RTF::Control;
 use Test::More tests => 1;
 

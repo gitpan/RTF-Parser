@@ -1,11 +1,14 @@
 package RTF::HTML::Converter::ansi;
+$RTF::HTML::Converter::ansi::VERSION = '1.10';
+use strict;
+use warnings;
 
 my @data = (<DATA>);
 chomp(@data);
 
 sub data {
 
-	return @data;
+    return @data;
 
 }
 

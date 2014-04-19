@@ -1,11 +1,11 @@
 package RTF::TEXT::Converter::ansi;
-
+$RTF::TEXT::Converter::ansi::VERSION = '1.10';
 my @data = (<DATA>);
 chomp(@data);
 
 sub data {
 
-	return @data;
+    return @data;
 
 }
 

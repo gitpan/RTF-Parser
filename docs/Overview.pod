@@ -24,12 +24,12 @@ L<RTF::Parser> is the foundation class. It's essentially a wrapper
 for <RTF::Tokenizer> that executes events that you define as it comes
 across different parts of the RTF document - it has handlers for
 when groups open, when they close, when we come across a control word,
-and so on. 
+and so on.
 
 =head2 RTF::Control
 
 L<RTF::Control> sub-classes L<RTF::Parser>. It defines a number of events
-for which you can write handlers that are specifically geared towards 
+for which you can write handlers that are specifically geared towards
 people who want to write converters - where RTF::Parser things in terms
 of control words and groups, RTF::Control thinks in terms of paragraphs,
 and formatting properties for text.
@@ -43,7 +43,7 @@ to inline RTF conversion to text or HTML in your documents.
 
 =head1 AUTHOR
 
-Peter Sergeant C<rtf.parser@clueball.com>
+Peter Sergeant C<pete@clueball.com>
 
 =head1 COPYRIGHT
 

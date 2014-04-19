@@ -7,8 +7,9 @@ use Getopt::Long;
 use File::Basename;
 
 use vars qw/$BASENAME $DIRNAME/;
+
 BEGIN {
-  ($BASENAME, $DIRNAME) = fileparse($0); 
+    ( $BASENAME, $DIRNAME ) = fileparse($0);
 }
 use lib $DIRNAME;
 
@@ -16,25 +17,25 @@ select(STDOUT);
 
 require RTF::HTML::Converter;
 my $result;
-my $self = new RTF::HTML::Converter(Output => \$result);	
+my $self = new RTF::HTML::Converter( Output => \$result );
 
-if (@ARGV)  {
-  foreach my $filename (@ARGV) {
-    $self->parse_stream($filename);
-    print $result;
-    $result = '';
-  }
+if (@ARGV) {
+    foreach my $filename (@ARGV) {
+        $self->parse_stream($filename);
+        print $result;
+        $result = '';
+    }
 } else {
-  while (<DATA>) {
-    s/\#.*//;
-    next unless /\S/;
-    print STDERR "-" x length($_), "\n";
-    print STDERR "$_";
-    print STDERR "-" x length($_), "\n";
-    $self->parse_string($_);
-    print $result;
-    $result = '';
-  }
+    while (<DATA>) {
+        s/\#.*//;
+        next unless /\S/;
+        print STDERR "-" x length($_), "\n";
+        print STDERR "$_";
+        print STDERR "-" x length($_), "\n";
+        $self->parse_string($_);
+        print $result;
+        $result = '';
+    }
 }
 __END__
 #{} # Ok!

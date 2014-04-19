@@ -1,11 +1,14 @@
 package RTF::TEXT::Converter::charmap;
+$RTF::TEXT::Converter::charmap::VERSION = '1.10';
+use strict;
+use warnings;
 
 my @data = (<DATA>);
 chomp(@data);
 
 sub data {
 
-	return @data;
+    return @data;
 
 }
 

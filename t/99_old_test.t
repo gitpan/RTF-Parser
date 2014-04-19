@@ -1,3 +1,6 @@
+use strict;
+use warnings;
+
 use RTF::HTML::Converter;
 my $result;
 my $self = new RTF::HTML::Converter(Output => \$result);	
