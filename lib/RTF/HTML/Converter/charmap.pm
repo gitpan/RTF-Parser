@@ -1,5 +1,5 @@
 package RTF::HTML::Converter::charmap;
-$RTF::HTML::Converter::charmap::VERSION = '1.11';
+$RTF::HTML::Converter::charmap::VERSION = '1.12';
 use strict;
 use warnings;
 

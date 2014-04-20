@@ -2,7 +2,7 @@
 use strict;
 
 package RTF::HTML::Converter;
-$RTF::HTML::Converter::VERSION = '1.11';
+$RTF::HTML::Converter::VERSION = '1.12';
 use RTF::Control;
 use RTF::HTML::Converter::ansi;
 use RTF::HTML::Converter::charmap;
@@ -23,7 +23,7 @@ RTF::HTML::Converter - Perl extension for converting RTF into HTML
 
 =head1 VERSION
 
-version 1.11
+version 1.12
 
 =head1 DESCRIPTION
 
@@ -122,6 +122,8 @@ my %LI_LEVEL   = ();       # li -> list level
 
 my %charmap_defaults = map( { sprintf( "%02x", $_ ) => "&#$_;" } ( 0 .. 255 ) );
 
+my %tag_counter = (); # Attempt to only close tags that might be open
+
 my %PAR_ALIGN = qw(
     qc CENTER
     ql LEFT
@@ -170,8 +172,27 @@ my %OL_TYPES = (
 );
 my $in_Field    = -1;    # nested links are illegal, not used
 my $in_Bookmark = -1;    # nested links are illegal, not used
+
+# This is truly nasty, but it's slightly nicer than what was there before
+my $make_tag_handler = sub {
+    my $tag_ = shift;
+    return sub {
+        $style = $tag_;
+        if ( $event eq 'end' ) {
+            if ( $tag_counter{ $style } ) {
+                $tag_counter{ $style }--;
+                output "</$style>"
+            }
+        } else {
+            $tag_counter{ $style }++;
+            output "<$style>";
+        }
+    }
+};
+
 %do_on_event = (
     'document' => sub {    # Special action
+        %tag_counter = ();
         if ( $event eq 'start' ) {
             output
                 qq@<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" []>$N<html>$N<body>$N@;
@@ -324,104 +345,14 @@ my $in_Bookmark = -1;    # nested links are illegal, not used
     #     }
     #   },
     # CHAR properties
-    'b' => sub {
-        $style = 'b';
-        if ( $event eq 'end' ) {
-            output "</$style>";
-        } else {
-            output "<$style>";
-        }
-    },
-    'i' => sub {
-        $style = 'i';
-        if ( $event eq 'end' ) {
-            output "</$style>";
-        } else {
-            output "<$style>";
-        }
-    },
-    'ul' => sub {
-        $style = 'u';
-        if ( $event eq 'end' ) {
-            output "</$style>";
-        } else {
-            output "<$style>";
-        }
-    },
-    'sub' => sub {
-        $style = 'sub';
-        if ( $event eq 'end' ) {
-            output "</$style>";
-        } else {
-            output "<$style>";
-        }
-    },
-    'super' => sub {
-        $style = 'sup';
-        if ( $event eq 'end' ) {
-            output "</$style>";
-        } else {
-            output "<$style>";
-        }
-    },
-    'strike' => sub {
-        $style = 'strike';
-        if ( $event eq 'end' ) {
-            output "</$style>";
-        } else {
-            output "<$style>";
-        }
-    }, );
+    b      => $make_tag_handler->('b'),
+    i      => $make_tag_handler->('i'),
+    ul     => $make_tag_handler->('u'),
+    sub    => $make_tag_handler->('sub'),
+    super  => $make_tag_handler->('sup'),
+    strike => $make_tag_handler->('strike'),
+);
 
-###############################################################################
-# Could be used in a next release
-# manage a minimal context for the tag generation
-# gen_tags(EVENT, TAG_NAME, [ATTLIST])
-#          EVENT: open|close
-# return: a tag start|end
-my %cant_nest = map { $_ => 1 } qw(a);
-use constant GEN_TAGS_WARNS => 1;
-my @element_stack = ();
-my %open_element  = ();
-
-sub gen_tags {    # manage a minimal context for tag outputs
-
-    debug( 'gen_tags', @_ ) if RTF_DEBUG > 5;
-
-    die "bad argument number" unless ( @_ >= 2 );
-    my ( $eve, $tag, $att ) = @_;
-
-    my $result = '';
-    if ( $eve eq 'open' ) {
-        push @element_stack, $tag;    # add a new node
-        if ( $open_element{$tag}++ and defined $cant_nest{$tag} ) {
-            #print STDERR "skip open $tag\n";
-            $result = '';
-        } else {
-            $result = '<' . $tag . '>' . $N;
-        }
-    } else {                          # close
-        unless (@element_stack) {
-            warn "no element to close on the '$tag' tag\n" if GEN_TAGS_WARNS;
-            return $result;
-        }
-        my $opened_elt;
-        while (1) {
-            $opened_elt = pop @element_stack;
-            if ( --$open_element{$tag} >= 1 and defined $cant_nest{$tag} ) {
-                #print STDERR "skip close $opened_elt\n";
-            } else {
-                $result .= '</' . $opened_elt . '>' . $N;
-            }
-            last if $tag eq $opened_elt;
-            unless (@element_stack) {
-                warn "element stack is empty on $tag close\n" if GEN_TAGS_WARNS;
-                return $result;
-            }
-        }
-    }
-    $result;
-}
 ###############################################################################
 # If you have an &<entity>; in your RTF document and if
 # <entity> is a character entity, you'll see "&<entity>;" in the RTF document

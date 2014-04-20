@@ -1,19 +1,19 @@
 package RTF::Parser;
-$RTF::Parser::VERSION = '1.11';
+$RTF::Parser::VERSION = '1.12';
 use strict;
 use warnings;
 
 =head1 NAME
 
-RTF::Parser - An event-driven RTF Parser
+RTF::Parser - A DEPRECATED event-driven RTF Parser
 
 =head1 VERSION
 
-version 1.11
+version 1.12
 
 =head1 DESCRIPTION
 
-An event-driven RTF Parser
+A DEPRECATED event-driven RTF Parser
 
 =head1 PUBLIC SERVICE ANNOUNCEMENT
 
@@ -352,7 +352,7 @@ sub dont_skip_destinations {
 {
 
     package RTF::Action;
-$RTF::Action::VERSION = '1.11';
+$RTF::Action::VERSION = '1.12';
 use RTF::Config;
 
     use vars qw($AUTOLOAD);

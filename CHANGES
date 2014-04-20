@@ -1,3 +1,7 @@
+1.12 SUN 20 April 2014, 16:00am BST
+  - ... and I'm done for another decade. Warning about
+    deprecation added, quietened down some warnings.
+
 1.11 Sun 20 April 2014, 11:20am BST
   - Version bump to fix permissioning
 
@@ -12,7 +16,7 @@
 1.09 Tue 30 March 2004, 13:00pm BST
 
 + Decided to release a 'production' version. It works, it works
-  well, it just lacks some documentation. This way, people will 
+  well, it just lacks some documentation. This way, people will
 	find it. That's good.
 
 + Fixed a bug that'd allow trailing data after the last }
@@ -52,7 +56,7 @@
 
 + Rewrote all of RTF::Parser
 + Documented RTF::Parser's interface
-+ Added a nice big sample in the docs 
++ Added a nice big sample in the docs
 
 1.7 mercredi, 28 juillet 1999, 12:10:54 MET DST
 
@@ -66,7 +70,7 @@
 
 1.5 mercredi,  3 mars 1999, 13:37:49 MET
 - minor enhancements of RTF::Parser
-- More coherent method naming 
+- More coherent method naming
   (e.g. groupStart() is now named group_start())
 
 1.4 vendredi, 26 février 1999, 13:20:02 MET
@@ -80,7 +84,7 @@
 - Corrected bad access to the char_map file.
 
 1.1 vendredi, 18 décembre 1998, 15:09:28 MET
-- Better char processing. 
+- Better char processing.
 
 1.0 vendredi, 30 octobre 1998, 12:54:44 MET
 - Better processing of paragraphs in table
@@ -95,5 +99,5 @@
   (<joerg@de.uu.net>) thank to a patch of
   Rolf Howarth (<rolf@parallax.co.uk>)
 
-0.7 
+0.7
 - Many helpful comments from Bruce gingery (<bgingery@gtcs.com>)

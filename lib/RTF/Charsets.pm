@@ -1,5 +1,5 @@
 package RTF::Charsets;
-$RTF::Charsets::VERSION = '1.11';
+$RTF::Charsets::VERSION = '1.12';
 use strict;
 use warnings;
 

@@ -1,5 +1,5 @@
 ---
-abstract: 'An event-driven RTF Parser'
+abstract: 'A DEPRECATED event-driven RTF Parser'
 author:
   - 'Peter Sergeant <pete@clueball.com>'
 build_requires: {}
@@ -15,4 +15,4 @@ name: RTF-Parser
 requires:
   ExtUtils::MakeMaker: '6.30'
   RTF::Tokenizer: '1.16'
-version: '1.11'
+version: '1.12'

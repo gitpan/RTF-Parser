@@ -10,7 +10,7 @@ use ExtUtils::MakeMaker 6.30;
 
 
 my %WriteMakefileArgs = (
-  "ABSTRACT" => "An event-driven RTF Parser",
+  "ABSTRACT" => "A DEPRECATED event-driven RTF Parser",
   "AUTHOR" => "Peter Sergeant <pete\@clueball.com>",
   "BUILD_REQUIRES" => {},
   "CONFIGURE_REQUIRES" => {
@@ -30,7 +30,7 @@ my %WriteMakefileArgs = (
     "RTF::Tokenizer" => "1.16"
   },
   "TEST_REQUIRES" => {},
-  "VERSION" => "1.11",
+  "VERSION" => "1.12",
   "test" => {
     "TESTS" => "t/*.t"
   }

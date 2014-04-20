@@ -1,5 +1,5 @@
 package RTF::Config;
-$RTF::Config::VERSION = '1.11';
+$RTF::Config::VERSION = '1.12';
 use strict;
 use warnings;
 

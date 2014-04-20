@@ -1,5 +1,5 @@
 package RTF::Control;
-$RTF::Control::VERSION = '1.11';
+$RTF::Control::VERSION = '1.12';
 use strict;
 use warnings;
 
@@ -12,7 +12,7 @@ RTF::Control - Application of RTF::Parser for document conversion
 
 =head1 VERSION
 
-version 1.11
+version 1.12
 
 =head1 DESCRIPTION
 
@@ -173,13 +173,13 @@ my $cli        = 0;        # current line indent value
 my $styledef   = '';
 
 =head2 new
- 
+
 Returns an RTF::Control object. RTF::Control is a subclass of RTF::Parser.
 Internally, we call RTF::Parser's new() method, and then we call an internal
 method called _configure(), which takes care of options we were passed.
 
 ADD STUFF ON -output AND -confdir
- 
+
 =cut
 
 sub new {
@@ -236,7 +236,7 @@ I'm leaving this method in because removing it will cause a backward-compatabili
 nightmare. This method returns the ( wait for it ) path that the .pm file corresponding
 to the class that the object is contained, without a trailing semi-colon. Obviously
 this is nasty in several ways. If you've set C<-confdir> in C<new()> that will be
-returned instead. You should definitely take that route if you're on an OS on which 
+returned instead. You should definitely take that route if you're on an OS on which
 Perl can't use / as a directory seperator.
 
 =cut
@@ -351,21 +351,21 @@ sub dump_stack {
 
 Holder routine for the current thing to do with output text we're given.
 It starts off as the same as C<$string_output_sub>, which adds the string
-to the element at the C<TOP> of the output stack. However, the idea, I 
+to the element at the C<TOP> of the output stack. However, the idea, I
 believe, is to allow that to be changed at will, using C<push_output>.
 
 =cut
 
 sub output {
 
-    $output_stack[TOP] .= $_[0]
+    $output_stack[TOP] .= $_[0] if defined $_[0];
 
 }
 
 # I'm guessing (because I'm generous ;-) that this is done because
-#	subclasses might want to modifiy the values of these. These are
-#	obviously the two different ways to spit out ... something. We
-#	start with the string_output_sub being what &output does tho.
+#   subclasses might want to modifiy the values of these. These are
+#   obviously the two different ways to spit out ... something. We
+#   start with the string_output_sub being what &output does tho.
 
 my $nul_output_sub = sub {
     #print STDERR "** $_[0] **\n";
@@ -542,7 +542,7 @@ use constant DISCARD_CONTENT => 0;
 
 # This seems to be what we do when we hit a control word
 #   we're not going to parse. He seems to be manually
-#	implementing this some times - I wonder why?
+#   implementing this some times - I wonder why?
 
 sub discard_content {
 
@@ -555,7 +555,7 @@ sub discard_content {
     # the close of a part of the document being dictated by a char
     # property, like, say, \b1I'm bold\b0 I'm not.
 
-    if ( $_[ARG] eq "0" ) {
+    if ( defined $arg && $_[ARG] eq "0" ) {
 
         # Remove the last element on the output stack
         pop_output();
@@ -571,7 +571,7 @@ sub discard_content {
         push_output();
         $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
 
-    } elsif ( $_[ARG] eq "1" ) {
+    } elsif ( defined $arg && $_[ARG] eq "1" ) {
         $cevent = 'start';
         push_output();
 
@@ -600,16 +600,17 @@ sub discard_content {
 sub do_on_info {
 
     my $string;
+    my $arg = $_[ARG] || '';
 
     if ( $_[EVENT] eq 'start' ) {
 
         push_output();
-        $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
+        $control[TOP]->{"$_[CONTROL]$arg"} = 1;
 
     } else {
 
         $string = pop_output();
-        $info{"$_[CONTROL]$_[ARG]"} = $string;
+        $info{"$_[CONTROL]$arg"} = $string;
 
     }
 }
@@ -678,8 +679,8 @@ sub install_callback {    # not a method!!!
 ###########################################################################
 # How to give a general definition?
 #my %control_definition = ( # control => [default_value nassociated_callback]
-#			  'char_props' => qw(0 do_on_control),
-#			 );
+#             'char_props' => qw(0 do_on_control),
+#            );
 
 # Remove character formatting properties ... there are actually more
 # character formatting properties defined in the RTF spec, but
@@ -843,19 +844,19 @@ __PACKAGE__->install_callback( 'char_props', 'do_on_char_prop' );
 ###########################################################################
 # not more used!!!
 #use constant DO_ON_TOGGLE => 0;
-#sub do_on_toggle {		# associated callback
+#sub do_on_toggle {     # associated callback
 ##
 #
 # return if $IN_STYLESHEET or $IN_FONTTBL;
 # my($control, $arg, $cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);
 # trace "my(\$control, \$arg, \$cevent) = ($_[CONTROL], $_[ARG], $_[EVENT]);" if DO_ON_TOGGLE;
 #
-# if ($_[ARG] eq "0") {		# \b0, register an START event for this control
+# if ($_[ARG] eq "0") {     # \b0, register an START event for this control
 #   $control[TOP]->{"$_[CONTROL]1"} = 1; # register a start event for this properties
 #   $cevent = 'end';
 # } elsif ($_[EVENT] eq 'start') { # \b or \b1
 #   $control[TOP]->{"$_[CONTROL]$_[ARG]"} = 1;
-# } else {			# $_[EVENT] eq 'end'
+# } else {          # $_[EVENT] eq 'end'
 #   if ($_[ARG] eq "1") {
 #     $cevent = 'start';
 #   } else {
@@ -939,7 +940,7 @@ my %flag_ctrl = (
 
     'pict' => \&discard_content,   #
     'xe'   => \&discard_content,   # index entry
-                                   #'v'  => \&discard_content,	# hidden text
+                                   #'v'  => \&discard_content,  # hidden text
 );
 
 sub do_on_destination {
@@ -959,9 +960,9 @@ my $field_ref = '';    # identifier associated to a field
 # BEGIN API REDEFINITION
 
 #   Ok, so this is actually the place to start as far as concerns
-#	  working out how the hell^Wfuck this thing works. I'm moving
-#	  all the constants to the top, and adding API documentation
-#	  here so future readers will have less trouble.
+#     working out how the hell^Wfuck this thing works. I'm moving
+#     all the constants to the top, and adding API documentation
+#     here so future readers will have less trouble.
 
 use constant GROUP_START_TRACE => 0;
 use constant GROUP_END_TRACE   => 0;
