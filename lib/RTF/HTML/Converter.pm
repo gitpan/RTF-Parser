@@ -2,7 +2,7 @@
 use strict;
 
 package RTF::HTML::Converter;
-$RTF::HTML::Converter::VERSION = '1.10';
+$RTF::HTML::Converter::VERSION = '1.11';
 use RTF::Control;
 use RTF::HTML::Converter::ansi;
 use RTF::HTML::Converter::charmap;
@@ -23,7 +23,7 @@ RTF::HTML::Converter - Perl extension for converting RTF into HTML
 
 =head1 VERSION
 
-version 1.10
+version 1.11
 
 =head1 DESCRIPTION
 

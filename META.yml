@@ -15,4 +15,4 @@ name: RTF-Parser
 requires:
   ExtUtils::MakeMaker: '6.30'
   RTF::Tokenizer: '1.16'
-version: '1.10'
+version: '1.11'

@@ -1,5 +1,5 @@
 package RTF::Control;
-$RTF::Control::VERSION = '1.10';
+$RTF::Control::VERSION = '1.11';
 use strict;
 use warnings;
 
@@ -12,7 +12,7 @@ RTF::Control - Application of RTF::Parser for document conversion
 
 =head1 VERSION
 
-version 1.10
+version 1.11
 
 =head1 DESCRIPTION
 

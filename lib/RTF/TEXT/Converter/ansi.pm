@@ -1,5 +1,5 @@
 package RTF::TEXT::Converter::ansi;
-$RTF::TEXT::Converter::ansi::VERSION = '1.10';
+$RTF::TEXT::Converter::ansi::VERSION = '1.11';
 my @data = (<DATA>);
 chomp(@data);
 

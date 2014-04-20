@@ -1,5 +1,5 @@
 package RTF::HTML::Converter::ansi;
-$RTF::HTML::Converter::ansi::VERSION = '1.10';
+$RTF::HTML::Converter::ansi::VERSION = '1.11';
 use strict;
 use warnings;
 

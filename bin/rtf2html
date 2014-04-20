@@ -1,7 +1,7 @@
 #!/usr/local/bin/perl 
 # Sonovision-Itep, Verdret 1995-1999
 package App::rtf2html;
-$App::rtf2html::VERSION = '1.10';
+$App::rtf2html::VERSION = '1.11';
 use strict;
 use warnings;
 

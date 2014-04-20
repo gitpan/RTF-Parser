@@ -1,5 +1,5 @@
 package RTF::Parser;
-$RTF::Parser::VERSION = '1.10';
+$RTF::Parser::VERSION = '1.11';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ RTF::Parser - An event-driven RTF Parser
 
 =head1 VERSION
 
-version 1.10
+version 1.11
 
 =head1 DESCRIPTION
 
@@ -352,7 +352,7 @@ sub dont_skip_destinations {
 {
 
     package RTF::Action;
-$RTF::Action::VERSION = '1.10';
+$RTF::Action::VERSION = '1.11';
 use RTF::Config;
 
     use vars qw($AUTOLOAD);

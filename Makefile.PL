@@ -30,7 +30,7 @@ my %WriteMakefileArgs = (
     "RTF::Tokenizer" => "1.16"
   },
   "TEST_REQUIRES" => {},
-  "VERSION" => "1.10",
+  "VERSION" => "1.11",
   "test" => {
     "TESTS" => "t/*.t"
   }
